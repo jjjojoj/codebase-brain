@@ -1,59 +1,49 @@
-# Task 0: Core Library for Codebase Brain
+# Task 0 v2: Core Library (Updated with Claude-Context designs)
 
-Implement the shared core library at packages/core/ for 3 MCP servers.
+## New requirements (from claude-context analysis)
 
-## What to build
+### 1. Multi-Provider Embedder (IMPORTANT)
+`packages/core/embedder.py` must support strategy pattern:
+- `SentenceTransformerEmbedder` (BAAI/bge-m3, local, default)
+- `OllamaEmbedder` (bge-m3 via Ollama REST API, local)
+- `OpenAIEmbedder` (text-embedding-3-small, cloud, needs API key)
+- Common interface: `embed(text) -> list[float]`, `embed_batch(texts) -> list[list[float]]`
+- Config: `EMBEDDING_PROVIDER` env var (sentence_transformers|ollama|openai)
+- Auto-detect: if OPENAI_API_KEY set, use OpenAI; if OLLAMA_HOST set, use Ollama; default sentence-transformers
 
-### 1. packages/core/config.py
-- Config class with defaults:
-  - MILVUS_DB_PATH: ~/.codebrain/milvus.db (Milvus Lite embedded)
-  - EMBEDDING_MODEL: BAAI/bge-m3
-  - OLLAMA_HOST: http://localhost:11434
-- Load from env vars with fallback to defaults
-- Singleton pattern
+### 2. Hybrid Search for MilvusClient
+`packages/core/milvus_client.py` must support hybrid search:
+- Method: `hybrid_search(collection, query_text, embedding, top_k, filter_expr=None)`
+- Uses Milvus hybrid_search API (dense vector + BM25 sparse)
+- If Milvus Lite doesn't support hybrid, fall back to:
+  1. Vector search (dense) → top_k*2 results
+  2. Keyword filter (Python-side BM25 or simple token matching) → re-rank
+  3. RRF (Reciprocal Rank Fusion) to merge both result sets
 
-### 2. packages/core/embedder.py
-- Embedder class using sentence-transformers
-- __init__ loads model from config
-- embed(text: str) -> list[float]
-- embed_batch(texts: list[str]) -> list[list[float]]
-- Model: BAAI/bge-m3, dim=1024
+### 3. File Watch Trigger
+`packages/core/mcp_base.py` must add:
+- Watch `~/.codebrain/.sync-trigger` file
+- On modification, call a callback (for conventions-mcp auto-reindex)
+- Debounce: 2 second window
 
-### 3. packages/core/milvus_client.py
-- MilvusClient class wrapping pymilvus (Milvus Lite)
-- init_collections() creates 3 collections if not exist:
-  - conventions: id(str,PK), module(str), title(str), content(str), embedding(FLOAT_VECTOR,1024), created_at(str)
-  - session_memory: id(str,PK), task(str), files_modified(str), decisions(str), assumptions(str), problems(str), embedding(FLOAT_VECTOR,1024), created_at(str)
-  - git_history: id(str,PK), file_path(str), commit_hash(str), commit_msg(str), author(str), date(str), code_snippet(str), embedding(FLOAT_VECTOR,1024)
-- insert methods for each collection
-- search methods that take embedding + top_k, return results
+## Original requirements (keep all)
 
-### 4. packages/core/__init__.py
-- Export Config, Embedder, MilvusClient
+### packages/core/config.py
+- Config class with defaults + env var override
+- MILVUS_DB_PATH, EMBEDDING_PROVIDER, EMBEDDING_MODEL, OLLAMA_HOST, OPENAI_API_KEY
 
-### 5. pyproject.toml at root
-```toml
-[project]
-name = "codebase-brain"
-version = "0.1.0"
-requires-python = ">=3.12"
-dependencies = [
-    "mcp>=1.0.0",
-    "pymilvus>=2.4.0",
-    "sentence-transformers>=3.0.0",
-    "pyyaml>=6.0",
-]
-```
+### packages/core/milvus_client.py
+- init_collections() for conventions, session_memory, git_history
+- insert/search methods per collection
+- NEW: hybrid_search() with RRF fallback
 
-### 6. packages/core/mcp_base.py
-- BrainMCP class wrapping FastMCP from mcp package
-- Auto-initializes Milvus collections on startup
-- Provides get_milvus() and get_embedder() helpers
-- Standard error handling
+### packages/core/mcp_base.py  
+- BrainMCP wrapping FastMCP
+- Auto-init Milvus on startup
+- NEW: sync-trigger file watcher
 
-## Requirements
-- Python 3.12
-- Use type hints
-- Add docstrings
-- Handle errors gracefully (Milvus not available, model not loaded)
-- Don't use ollama API for embeddings, use sentence-transformers directly (local)
+### packages/core/__init__.py
+- Export all key classes
+
+### pyproject.toml at root
+- Add openai and httpx deps for OpenAI/Ollama embedder support
