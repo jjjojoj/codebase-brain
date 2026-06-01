@@ -250,18 +250,18 @@ Tests:
 
 ### Phase 3: Milvus Vector Knowledge Layer
 
-Status: not implemented yet. Current code has Milvus Lite configuration fields and an optional dependency extra, but the active vector store remains SQLite until the Milvus backend passes insert/search/migration tests.
+Status: initial optional backend implemented. Current code has `MilvusVectorStore`, Milvus/Milvus Lite configuration fields, split optional dependency extras (`milvus` for remote client, `milvus-lite` for local engine), and fake-client contract tests. SQLite remains the default backend until Milvus Lite receives broader live smoke coverage and migration documentation.
 
 Deliverables:
 
-- Add Milvus Lite backend.
+- Add Milvus Lite backend. Done for the initial optional backend.
 - Add collections for conventions, sessions, decisions, problems, docs.
 - Port/keep existing SQLite vector store only as fallback if needed.
 - Add hybrid ranking for team knowledge where Milvus supports it.
 
 Tests:
 
-- Local Milvus Lite insert/search tests.
+- Local Milvus Lite insert/search tests. Fake-client contract tests are done; live Milvus Lite smoke should run when `pymilvus[milvus-lite]` is installed in CI. Local install was blocked on one macOS environment by `faiss-cpu` requiring `swig`, so remote Milvus/Zilliz and SQLite remain the safer adoption paths.
 - Fallback tests.
 - Collection schema migration tests.
 
@@ -356,7 +356,8 @@ The next shipped slice adds operational visibility and sync freshness without ch
 3. Add `brain_index_job_status` for in-process async job visibility.
 4. Persist successful sync snapshots to `.codebrain/index-state.json`.
 5. Add `codebrain dashboard` as a local read-only UI for status and MCP config generation.
-6. Add Milvus Lite config fields and optional dependency metadata, but keep SQLite as the active default until the Milvus backend has real insert/search tests.
+6. Add Milvus Lite config fields and optional dependency metadata, but keep SQLite as the active default until Milvus has broader rollout coverage.
+7. Add `MilvusVectorStore` behind `CODEBRAIN_VECTOR_STORE_BACKEND=milvus`.
 
 ## Risks
 

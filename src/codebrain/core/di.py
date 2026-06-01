@@ -61,6 +61,18 @@ class Container:
                 db_path=self.settings.resolved_db_path,
                 dimension=dim,
             )
+        if backend == "milvus":
+            try:
+                dim = self.embedder.dimension()
+            except Exception:
+                dim = 384
+            from codebrain.infrastructure.vector_store.milvus import MilvusVectorStore
+            return MilvusVectorStore(
+                uri=self.settings.milvus_uri,
+                token=self.settings.milvus_token,
+                collection_prefix=self.settings.milvus_collection_prefix,
+                dimension=dim,
+            )
         raise ValueError(f"Unknown vector store backend: {backend}")
 
 

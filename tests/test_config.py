@@ -47,6 +47,20 @@ def test_settings_custom_values() -> None:
     assert s.embedder_model == "custom-model"
 
 
+def test_settings_milvus_values() -> None:
+    """Milvus config should be explicit and env-compatible."""
+    s = Settings(
+        vector_store_backend="milvus",
+        milvus_uri="http://localhost:19530",
+        milvus_token="token",
+        milvus_collection_prefix="team_brain",
+    )
+    assert s.vector_store_backend == "milvus"
+    assert s.milvus_uri == "http://localhost:19530"
+    assert s.milvus_token == "token"
+    assert s.milvus_collection_prefix == "team_brain"
+
+
 def test_openai_embeddings_disabled_by_default() -> None:
     """Cloud embeddings should fail closed unless explicitly enabled."""
     settings = Settings(embedder_provider="openai", openai_api_key="dummy")

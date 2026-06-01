@@ -40,7 +40,7 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 - 自动 watch 常驻文件监听。
 - 自动改写各类 AI 客户端配置。
 - 内置重写 `codebase-memory-mcp` 的图谱引擎。
-- 真正启用 Milvus 作为默认向量后端。
+- 把 Milvus 设为默认向量后端。
 
 这些能力不是永远不做，而是等安全过滤、文件过滤、真实客户端验证成熟后再回流。
 
@@ -67,6 +67,34 @@ py -3.12 -m venv .venv
 ```
 
 `local` extra 会安装 `sentence-transformers`。第一次启动时模型可能需要下载；公司私有代码或敏感仓库建议保持这个本地方案。
+
+如果团队想接入已有的 Milvus Standalone 或 Zilliz Cloud，可以安装轻量客户端依赖：
+
+```bash
+.venv/bin/python -m pip install -e ".[local,milvus]"
+```
+
+如果团队想在本机试用 Milvus Lite，再安装包含本地引擎的依赖：
+
+```bash
+.venv/bin/python -m pip install -e ".[local,milvus-lite]"
+```
+
+然后在 MCP 配置里显式启用：
+
+```json
+{
+  "env": {
+    "CODEBRAIN_VECTOR_STORE_BACKEND": "milvus",
+    "CODEBRAIN_MILVUS_URI": "/ABS/PATH/your-project/.codebrain/milvus_lite.db",
+    "CODEBRAIN_MILVUS_COLLECTION_PREFIX": "codebrain"
+  }
+}
+```
+
+不设置 `CODEBRAIN_VECTOR_STORE_BACKEND=milvus` 时，默认仍使用 SQLite。
+
+注意：Milvus Lite 依赖本地原生包，不同系统可能需要额外构建工具。若安装 `milvus-lite` 被 `faiss-cpu`、`swig` 或平台 wheel 卡住，先使用远程 Milvus/Zilliz 或继续用默认 SQLite。
 
 如果需要代码图谱能力，再安装 `codebase-memory-mcp`，并确保它在 `PATH` 里：
 
@@ -289,11 +317,13 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` | `.codebrain/conventions` | 建议配置成每个项目自己的绝对路径。 |
 | `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS` | `false` | 私有代码或团队项目建议保持 false。 |
 | `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED` | `false` | 稳定版建议保持 false。 |
+| `CODEBRAIN_VECTOR_STORE_BACKEND` | `sqlite` | 可选 `sqlite` 或 `milvus`；不显式设置时保持本地 SQLite。 |
 | `CODEBRAIN_CODEBASE_MEMORY_BINARY` | `codebase-memory-mcp` | 可选图谱 sidecar 二进制路径。 |
 | `CODEBRAIN_CODEBASE_MEMORY_TIMEOUT_SEC` | `120` | 调用图谱 sidecar 的超时时间。 |
 | `CODEBRAIN_INDEX_MAX_FILE_SIZE_MB` | `5` | 文件过滤快照中纳入索引判断的单文件大小上限。 |
-| `CODEBRAIN_MILVUS_URI` | `.codebrain/milvus_lite.db` | 未来 Milvus Lite 默认 URI；当前用于状态展示和下一阶段接入。 |
-| `CODEBRAIN_MILVUS_COLLECTION_PREFIX` | `codebrain` | 未来 Milvus collection 前缀。 |
+| `CODEBRAIN_MILVUS_URI` | `.codebrain/milvus_lite.db` | Milvus Lite 本地文件路径，或远程 Milvus / Zilliz URI。 |
+| `CODEBRAIN_MILVUS_TOKEN` | 空 | 远程 Milvus / Zilliz 需要 token 时再设置。 |
+| `CODEBRAIN_MILVUS_COLLECTION_PREFIX` | `codebrain` | Milvus collection 前缀，避免和已有 collection 冲突。 |
 
 ## 安全与信任
 
@@ -306,6 +336,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 - `codebase-memory-mcp` sidecar 由你本机安装和升级；Codebase Brain 只通过 CLI 调用它，不复制它的源码。
 - `brain_sync_project` 的异步 job 是 MCP 进程内状态；MCP 服务重启后历史 job 列表不会保留，但 `.codebrain/index-state.json` 会保留最后一次索引快照。
 - Dashboard 是本地只读页面，不是 Attu 代码，也不是 Milvus 管理台替代品。
+- Milvus 后端是显式 opt-in；远程 Milvus/Zilliz 安装 `.[milvus]`，本机 Milvus Lite 安装 `.[milvus-lite]`。
 
 ## 与代码图谱型 MCP 的关系
 
@@ -317,7 +348,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 - 团队知识：继续由 Codebase Brain 管理 `.codebrain/conventions`、会话记忆和 Git 只读上下文。
 - AI 客户端体验：优先让 Cursor、Qoder、Codex、OpenCode、Hermes 等都只配置一个 `codebase-brain` MCP Server。
 - 当前已有：只读本地 dashboard、文件过滤快照、sync-trigger 状态、异步索引 job。
-- 后续增强：真正接入 Milvus / Zilliz 向量层、Claude Context 风格混合检索、Attu 类管理体验和更完整的任务前上下文编排。
+- 后续增强：Claude Context 风格混合检索、远程 Milvus / Zilliz 运行手册、Attu 类管理体验和更完整的任务前上下文编排。
 
 ## Troubleshooting
 
@@ -328,6 +359,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | `index_convention_files` 找不到文件 | 设置 `CODEBRAIN_DEFAULT_CONVENTIONS_PATH`，或调用工具时传绝对路径。 |
 | dashboard 打不开 | 确认 `codebrain dashboard` 进程还在运行，或换一个未被占用的端口。 |
 | `brain_sync_status` 总是需要同步 | 检查是否有生成文件未被过滤；可传 `exclude_patterns` 增加忽略规则。 |
+| 设置 `CODEBRAIN_VECTOR_STORE_BACKEND=milvus` 后启动失败 | 远程 Milvus/Zilliz 先安装 `.venv/bin/python -m pip install -e ".[milvus]"`；本地 Milvus Lite 安装 `.venv/bin/python -m pip install -e ".[milvus-lite]"`，并确认 `CODEBRAIN_MILVUS_URI` 指向可写本地路径或可访问的远程 Milvus。 |
 | 第一次启动慢 | `sentence-transformers` 第一次加载或下载模型会比较慢。 |
 | 不想任何文本离开本机 | 保持 `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=false`，不要配置 OpenAI provider。 |
 

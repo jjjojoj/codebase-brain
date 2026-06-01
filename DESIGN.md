@@ -132,7 +132,7 @@
   - `domains/brain/indexing.py` file filtering and sync snapshots.
   - `domains/brain/jobs.py` in-process async indexing job registry.
   - `dashboard.py` local read-only status and MCP config UI.
-  - `storage/milvus.py` vector store backend, pending.
+  - `infrastructure/vector_store/milvus.py` optional Milvus vector store backend.
   - `installers/` client config writers.
 - Variants and states:
   - Local-only mode: codebase-memory sidecar + SQLite/Milvus Lite.
@@ -220,4 +220,5 @@
 - [ ] Decide whether Codebase Brain vendors/forks `codebase-memory-mcp`, downloads it, or requires user installation.
 - [ ] Decide the first supported company workflow: Cursor/Qoder first, or Codex/OpenCode first.
 - [ ] Decide the privacy policy for indexing Git commit messages and diffs.
-- [ ] Decide whether the first vector backend is Milvus Lite only, or Milvus Lite plus remote Milvus.
+- [x] Decide whether the first vector backend is Milvus Lite only, or Milvus Lite plus remote Milvus.
+  - Decision: support both through `MilvusClient` URI configuration, default to local Milvus Lite path when explicitly enabled.
