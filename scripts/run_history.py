@@ -1,0 +1,4 @@
+import sys
+sys.path.insert(0, r'C:\codebase-brain\packages')
+from history_mcp.server import main
+main()

@@ -237,9 +237,11 @@ def _file_record_id(path: Path) -> str:
     return f"convention-file-{digest[:48]}"
 
 
-server = create_server()
-mcp = server.mcp
+def main() -> None:
+    """Run the conventions MCP server."""
+    server = create_server()
+    server.run()
 
 
 if __name__ == "__main__":
-    server.run()
+    main()
