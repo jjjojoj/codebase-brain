@@ -1,8 +1,8 @@
-# Codebase Brain — Implementation Plan
+# Codebase Brain — 实施计划（已完成）
 
-> **For Hermes:** Use subagent-driven-development to implement task-by-task.
+> **状态：✅ 全部完成。** 本文件是开发过程记录，不是待办清单。
 
-**Goal:** 3 个互补 MCP Server，与 codebase-memory-mcp 配合，覆盖 AI 编程在大型项目中的全部 7 个痛点。
+**成果：** 3 个 MCP Server（1987 行 Python），覆盖 AI 编程在大型项目中的全部 7 个痛点。详见 [README](../README.md)。
 
 **Architecture:**
 ```

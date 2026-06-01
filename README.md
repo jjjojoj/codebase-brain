@@ -373,18 +373,6 @@ A: 项目根目录的 `.codebrain/conventions/`，Markdown 格式，YAML frontma
 
 ---
 
-## 🤝 贡献
-
-欢迎提交 Issue 和 PR！请先阅读 [实施计划](docs/plan.md) 了解架构设计。
-
----
-
 ## 📄 许可证
 
 MIT License
-
----
-
-<p align="center">
-  <sub>Made with ❤️ for developers who code with AI</sub>
-</p>
