@@ -1,0 +1,12 @@
+[project]
+name = "codebase-brain"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=1.0.0",
+    "pymilvus>=2.4.0",
+    "sentence-transformers>=3.0.0",
+    "pyyaml>=6.0",
+    "openai>=1.0.0",
+    "httpx>=0.27.0",
+]
