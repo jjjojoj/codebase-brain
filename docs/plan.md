@@ -223,7 +223,7 @@ git add . && git commit -m "init: codebase-brain monorepo skeleton"
 {
   "mcpServers": {
     "codebase-memory": {
-      "command": "/home/zkys/.local/bin/codebase-memory-mcp",
+      "command": "/home/user/.local/bin/codebase-memory-mcp",
       "args": []
     },
     "codebase-brain-conventions": {
