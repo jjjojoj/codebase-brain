@@ -34,6 +34,10 @@ class Settings(BaseSettings):
     history_enabled: bool = True
     git_history_index_enabled: bool = False
 
+    # External code graph adapter
+    codebase_memory_binary: str = "codebase-memory-mcp"
+    codebase_memory_timeout_sec: int = 120
+
     # Project
     default_project: str = ""
     default_conventions_path: str = ".codebrain/conventions"

@@ -13,6 +13,9 @@ def test_stable_mcp_surface_excludes_git_history_vector_tools() -> None:
 
     tools = set(server.mcp._tool_manager._tools)
 
+    assert "brain_status" in tools
+    assert "brain_index_project" in tools
+    assert "brain_explain_symbol" in tools
     assert "get_blame" in tools
     assert "get_recent_changes" in tools
     assert "get_co_changed_files" in tools
