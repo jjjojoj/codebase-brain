@@ -16,22 +16,30 @@ def serve() -> None:
 
 @app.command()
 def index(
-    project: str = typer.Option(".", help="Path to project root"),
-    max_commits: int = typer.Option(500, help="Max git commits to index"),
+    path: str = typer.Option(
+        ".codebrain/conventions",
+        help="Path to a directory of markdown convention files",
+    ),
 ) -> None:
-    """Index a project codebase into the vector store."""
+    """Index project convention files into the local store."""
     from codebrain.config import Settings
     from codebrain.core.di import init_container
     from codebrain.core.repository import Repository
-    from codebrain.domains.history.logic import index_git_history
+    from codebrain.domains.conventions.logic import index_convention_files
 
     settings = Settings()
     container = init_container(settings)
     repo = Repository(container.vector_store, container.embedder)
 
-    typer.echo(f"Indexing git history for {project}...")
-    result = index_git_history(repo, project, max_commits)
-    typer.echo(f"  Indexed {result['indexed_commits']} commits, {result['indexed_entries']} entries")
+    typer.echo(f"Indexing convention files from {path}...")
+    result = index_convention_files(repo, path)
+    typer.echo(
+        f"  Indexed {result['indexed']} files, skipped {result['skipped']} files"
+    )
+    if result["errors"]:
+        typer.echo("  Errors:")
+        for error in result["errors"]:
+            typer.echo(f"    {error['path']}: {error['error']}")
 
 
 @app.command()

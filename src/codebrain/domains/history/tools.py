@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from codebrain.config import Settings
 from codebrain.core.di import get_container
 from codebrain.core.repository import Repository
 from codebrain.domains.history import git_indexer, logic
@@ -20,6 +21,7 @@ def search_history(
     top_k: int = 10,
 ) -> list[dict[str, Any]]:
     """Search indexed git history by semantic similarity."""
+    _require_git_history_index_enabled()
     return logic.search_history(_repo(), query, file_filter, top_k)
 
 
@@ -55,4 +57,14 @@ def index_git_history(
     repo_path: str = ".", max_commits: int = 500
 ) -> dict[str, int]:
     """Index recent git commit/file history into the git_history collection."""
+    _require_git_history_index_enabled()
     return logic.index_git_history(_repo(), repo_path, max_commits)
+
+
+def _require_git_history_index_enabled() -> None:
+    settings = Settings()
+    if not settings.git_history_index_enabled:
+        raise RuntimeError(
+            "Git history vector indexing is disabled in the stable build. "
+            "Use get_blame, get_recent_changes, and get_co_changed_files for safe git context."
+        )

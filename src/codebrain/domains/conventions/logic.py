@@ -102,7 +102,7 @@ def index_convention_files(
 # ----------------------------------------------------------------- Helpers
 
 def _default_conventions_path() -> Path:
-    return Path("~/.codebrain/conventions").expanduser()
+    return Path(".codebrain/conventions")
 
 
 def _parse_convention_file(path: Path) -> ConventionFile:

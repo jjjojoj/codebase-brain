@@ -25,7 +25,7 @@ def search_conventions(
     module_filter: str | None = None,
     top_k: int = 5,
 ) -> list[dict[str, Any]]:
-    """Search conventions with dense retrieval plus BM25/RRF hybrid ranking."""
+    """Search indexed project conventions with local vector retrieval."""
     return logic.search_conventions(query, _repo(), keywords, module_filter, top_k)
 
 
@@ -36,4 +36,5 @@ def list_conventions(module: str | None = None) -> list[dict[str, Any]]:
 
 def index_convention_files(path: str | None = None) -> dict[str, Any]:
     """Index markdown convention files with YAML frontmatter."""
-    return logic.index_convention_files(_repo(), path)
+    c = get_container()
+    return logic.index_convention_files(_repo(), path or c.settings.default_conventions_path)

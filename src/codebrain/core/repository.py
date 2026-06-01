@@ -37,7 +37,8 @@ class Repository:
         module_filter: str | None = None,
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
-        embedding = self.embedder.embed(query)
+        search_text = " ".join(part for part in (query, keywords_text) if part)
+        embedding = self.embedder.embed(search_text)
         filter_expr = None
         if module_filter:
             escaped = module_filter.replace("\\", "\\\\").replace('"', '\\"')
