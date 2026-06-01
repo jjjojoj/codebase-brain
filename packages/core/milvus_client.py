@@ -44,6 +44,14 @@ class MilvusClient:
         try:
             self._client = PyMilvusClient(uri=self.config.milvus_uri)
             self._data_type = DataType
+        except NotImplementedError:
+            # Milvus Lite 3.0 on Windows throws non-fatal NotImplementedError
+            # for AllocTimestamp gRPC call, but server is actually running.
+            # Retry with a fresh connection.
+            import time
+            time.sleep(1)
+            self._client = PyMilvusClient(uri=self.config.milvus_uri)
+            self._data_type = DataType
         except Exception as exc:
             raise RuntimeError(
                 f"Failed to connect to Milvus Lite at {self.config.milvus_uri!r}."
