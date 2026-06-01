@@ -17,6 +17,8 @@ def test_settings_defaults() -> None:
     assert s.allow_cloud_embeddings is False
     assert s.git_history_index_enabled is False
     assert s.default_conventions_path == ".codebrain/conventions"
+    assert s.milvus_uri == ".codebrain/milvus_lite.db"
+    assert s.milvus_collection_prefix == "codebrain"
 
 
 def test_settings_env_prefix() -> None:

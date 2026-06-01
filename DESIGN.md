@@ -129,10 +129,11 @@
 - New/changed components:
   - `brain` orchestration domain for task-level context packs.
   - `adapters/codebase_memory.py` sidecar adapter.
-  - `storage/milvus.py` vector store backend.
-  - `indexing/project_indexer.py` orchestration pipeline.
+  - `domains/brain/indexing.py` file filtering and sync snapshots.
+  - `domains/brain/jobs.py` in-process async indexing job registry.
+  - `dashboard.py` local read-only status and MCP config UI.
+  - `storage/milvus.py` vector store backend, pending.
   - `installers/` client config writers.
-  - Optional `ui/` dashboard later.
 - Variants and states:
   - Local-only mode: codebase-memory sidecar + SQLite/Milvus Lite.
   - Team mode: codebase-memory sidecar + Milvus Standalone/Zilliz Cloud.
@@ -211,7 +212,7 @@
   - Client configs for Cursor, Qoder, Codex, OpenCode, Claude Code, Hermes where practical.
 - Test/screenshot expectations:
   - MCP tool unit tests and CLI smoke tests before UI work.
-  - Dashboard work later requires browser screenshots.
+  - Dashboard work should keep HTTP payload tests and browser smoke checks.
 
 ## Open questions
 

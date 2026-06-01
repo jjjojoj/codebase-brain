@@ -21,12 +21,12 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 ## 当前稳定范围
 
-当前版本优先交付 17 个 MCP 工具：
+当前版本优先交付 20 个 MCP 工具：
 
 | 分组 | 工具 |
 | --- | --- |
 | 状态 | `health` |
-| 组合式入口 | `brain_status`, `brain_index_project`, `brain_explain_symbol` |
+| 组合式入口 | `brain_status`, `brain_sync_status`, `brain_sync_project`, `brain_index_job_status`, `brain_index_project`, `brain_explain_symbol` |
 | 项目约定 | `add_convention`, `search_conventions`, `list_conventions`, `index_convention_files` |
 | 会话记忆 | `start_session`, `record_decision`, `record_problem`, `record_file_change`, `end_session`, `recall_context` |
 | Git 只读上下文 | `get_blame`, `get_recent_changes`, `get_co_changed_files` |
@@ -37,9 +37,10 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 - 已索引 Git 历史的语义搜索。
 - 默认 OpenAI / 云端 embedding。
 - legacy `packages/*` 多 MCP Server 入口。
-- 自动 watch / 自动同步。
+- 自动 watch 常驻文件监听。
 - 自动改写各类 AI 客户端配置。
 - 内置重写 `codebase-memory-mcp` 的图谱引擎。
+- 真正启用 Milvus 作为默认向量后端。
 
 这些能力不是永远不做，而是等安全过滤、文件过滤、真实客户端验证成熟后再回流。
 
@@ -82,6 +83,22 @@ codebase-memory-mcp --version
   }
 }
 ```
+
+## 本地可视化 Dashboard
+
+可以启动一个只读本地页面，用来查看当前项目状态、文件过滤快照、sync-trigger 状态、Milvus 配置状态，并生成一份 MCP JSON 配置：
+
+```bash
+.venv/bin/codebrain dashboard --repo-path /ABS/PATH/your-project --port 8765
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:8765
+```
+
+这个 dashboard 不会自动改写 Cursor、Qoder、Codex、OpenCode 或 Hermes 的配置文件。它只展示状态和可复制的配置，避免误改每个开发者自己的本地环境。
 
 ## 初始化项目约定
 
@@ -196,10 +213,11 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 1. 给常见任务写 5 到 20 条约定，比如测试、错误处理、目录结构、提交信息。
 2. 调用 `index_convention_files`。
 3. 如果安装了 `codebase-memory-mcp`，调用 `brain_index_project` 索引代码图谱和约定。
-4. 开始复杂任务时调用 `start_session`。
-5. 修改不熟悉的符号前调用 `brain_explain_symbol`，再按需调用 `get_recent_changes`、`get_blame` 或 `get_co_changed_files`。
-6. 遇到重要决策或问题时调用 `record_decision` / `record_problem`。
-7. 任务结束时调用 `end_session`。
+4. 后续修改代码后调用 `brain_sync_status`，如果返回 `needs_sync: true`，再调用 `brain_sync_project`。
+5. 开始复杂任务时调用 `start_session`。
+6. 修改不熟悉的符号前调用 `brain_explain_symbol`，再按需调用 `get_recent_changes`、`get_blame` 或 `get_co_changed_files`。
+7. 遇到重要决策或问题时调用 `record_decision` / `record_problem`。
+8. 任务结束时调用 `end_session`。
 
 团队落地：
 
@@ -225,6 +243,9 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | 工具 | 说明 |
 | --- | --- |
 | `brain_status` | 面向 AI 客户端的一站式能力检查：本地知识层、sidecar 图谱、隐私开关。 |
+| `brain_sync_status` | 根据文件过滤快照判断项目是否需要重新索引。 |
+| `brain_sync_project` | sync-trigger 式索引入口；默认异步排队，也可以设置 `async_mode=false` 同步执行。 |
+| `brain_index_job_status` | 查看当前 MCP 进程内异步索引 job 状态。 |
 | `brain_index_project` | 索引当前项目：可调用 `codebase-memory-mcp` 建图，同时索引 `.codebrain/conventions`；支持 `graph_mode` (`full` / `moderate` / `fast`) 和 `graph_persistence`。 |
 | `brain_explain_symbol` | 解释函数、类或其它符号：组合图谱搜索、调用链追踪和团队约定搜索。 |
 
@@ -270,6 +291,9 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED` | `false` | 稳定版建议保持 false。 |
 | `CODEBRAIN_CODEBASE_MEMORY_BINARY` | `codebase-memory-mcp` | 可选图谱 sidecar 二进制路径。 |
 | `CODEBRAIN_CODEBASE_MEMORY_TIMEOUT_SEC` | `120` | 调用图谱 sidecar 的超时时间。 |
+| `CODEBRAIN_INDEX_MAX_FILE_SIZE_MB` | `5` | 文件过滤快照中纳入索引判断的单文件大小上限。 |
+| `CODEBRAIN_MILVUS_URI` | `.codebrain/milvus_lite.db` | 未来 Milvus Lite 默认 URI；当前用于状态展示和下一阶段接入。 |
+| `CODEBRAIN_MILVUS_COLLECTION_PREFIX` | `codebrain` | 未来 Milvus collection 前缀。 |
 
 ## 安全与信任
 
@@ -280,6 +304,8 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 - Git 历史向量索引默认禁用；稳定版 MCP 工具面不注册 `index_git_history` 和 `search_history`。
 - 当前没有自动安装脚本，也不会自动改写 Cursor、Qoder、Codex、OpenCode 等客户端配置。
 - `codebase-memory-mcp` sidecar 由你本机安装和升级；Codebase Brain 只通过 CLI 调用它，不复制它的源码。
+- `brain_sync_project` 的异步 job 是 MCP 进程内状态；MCP 服务重启后历史 job 列表不会保留，但 `.codebrain/index-state.json` 会保留最后一次索引快照。
+- Dashboard 是本地只读页面，不是 Attu 代码，也不是 Milvus 管理台替代品。
 
 ## 与代码图谱型 MCP 的关系
 
@@ -290,7 +316,8 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 - 底层图谱：优先复用 `codebase-memory-mcp`。
 - 团队知识：继续由 Codebase Brain 管理 `.codebrain/conventions`、会话记忆和 Git 只读上下文。
 - AI 客户端体验：优先让 Cursor、Qoder、Codex、OpenCode、Hermes 等都只配置一个 `codebase-brain` MCP Server。
-- 后续增强：再逐步接入 Milvus / Zilliz 向量层、Attu 类管理体验和更完整的任务前上下文编排。
+- 当前已有：只读本地 dashboard、文件过滤快照、sync-trigger 状态、异步索引 job。
+- 后续增强：真正接入 Milvus / Zilliz 向量层、Claude Context 风格混合检索、Attu 类管理体验和更完整的任务前上下文编排。
 
 ## Troubleshooting
 
@@ -299,6 +326,8 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | MCP 客户端看不到工具 | 检查 `command` 是否是绝对路径，重启客户端，再调用 `health`。 |
 | 数据库写到错误目录 | 显式设置 `CODEBRAIN_DB_PATH` 为业务仓库下的绝对路径。 |
 | `index_convention_files` 找不到文件 | 设置 `CODEBRAIN_DEFAULT_CONVENTIONS_PATH`，或调用工具时传绝对路径。 |
+| dashboard 打不开 | 确认 `codebrain dashboard` 进程还在运行，或换一个未被占用的端口。 |
+| `brain_sync_status` 总是需要同步 | 检查是否有生成文件未被过滤；可传 `exclude_patterns` 增加忽略规则。 |
 | 第一次启动慢 | `sentence-transformers` 第一次加载或下载模型会比较慢。 |
 | 不想任何文本离开本机 | 保持 `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=false`，不要配置 OpenAI provider。 |
 

@@ -140,6 +140,68 @@ def test_brain_index_project_degrades_when_graph_missing(monkeypatch, container)
     assert result["notes"]
 
 
+def test_brain_sync_status_uses_file_snapshot(tmp_path, container) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
+
+    result = brain_tools.brain_sync_status(str(tmp_path))
+
+    assert result["ok"] is True
+    assert result["needs_sync"] is True
+    assert result["snapshot"]["file_count"] == 1
+
+
+def test_brain_sync_project_runs_sync_and_records_state(monkeypatch, tmp_path, container) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
+    monkeypatch.setattr(
+        brain_tools,
+        "_make_codebase_memory_adapter",
+        lambda settings: FakeGraphAdapter(),
+    )
+    monkeypatch.setattr(
+        brain_tools.convention_tools,
+        "index_convention_files",
+        lambda path: {"ok": True, "path": path, "indexed": 0, "skipped": 0, "errors": []},
+    )
+
+    result = brain_tools.brain_sync_project(str(tmp_path), async_mode=False)
+    status = brain_tools.brain_sync_status(str(tmp_path))
+
+    assert result["ok"] is True
+    assert result["status"] == "synced"
+    assert result["result"]["state"]["ok"] is True
+    assert status["needs_sync"] is False
+
+
+def test_brain_sync_project_does_not_record_failed_index(monkeypatch, tmp_path, container) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
+    monkeypatch.setattr(
+        brain_tools,
+        "_make_codebase_memory_adapter",
+        lambda settings: MissingGraphAdapter(),
+    )
+
+    result = brain_tools.brain_sync_project(
+        str(tmp_path),
+        async_mode=False,
+        index_conventions=False,
+    )
+    status = brain_tools.brain_sync_status(str(tmp_path))
+
+    assert result["ok"] is False
+    assert result["result"]["state"]["ok"] is False
+    assert status["needs_sync"] is True
+
+
+def test_brain_index_job_status_lists_jobs() -> None:
+    result = brain_tools.brain_index_job_status()
+
+    assert result["ok"] is True
+    assert "jobs" in result
+
+
 def test_brain_index_project_returns_convention_index_error(monkeypatch, container) -> None:
     monkeypatch.setattr(
         brain_tools,

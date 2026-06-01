@@ -15,6 +15,17 @@ def serve() -> None:
 
 
 @app.command()
+def dashboard(
+    host: str = typer.Option("127.0.0.1", help="Dashboard bind host"),
+    port: int = typer.Option(8765, help="Dashboard port"),
+    repo_path: str = typer.Option(".", help="Repository path to inspect"),
+) -> None:
+    """Run the local read-only dashboard."""
+    from codebrain.dashboard import run_dashboard
+    run_dashboard(host=host, port=port, repo_path=repo_path)
+
+
+@app.command()
 def index(
     path: str = typer.Option(
         ".codebrain/conventions",

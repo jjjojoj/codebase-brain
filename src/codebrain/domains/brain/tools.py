@@ -12,6 +12,7 @@ from typing import Any
 from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
 from codebrain.config import Settings
 from codebrain.core.di import get_container
+from codebrain.domains.brain import indexing, jobs
 from codebrain.domains.conventions import tools as convention_tools
 
 
@@ -33,6 +34,11 @@ def brain_status(repo_path: str = ".") -> dict[str, Any]:
             "conventions_enabled": settings.conventions_enabled,
             "session_memory_enabled": settings.session_memory_enabled,
             "history_enabled": settings.history_enabled,
+            "milvus": {
+                "status": _milvus_status(settings),
+                "uri": settings.milvus_uri,
+                "collection_prefix": settings.milvus_collection_prefix,
+            },
         },
         "privacy": {
             "cloud_embeddings_allowed": settings.allow_cloud_embeddings,
@@ -40,6 +46,9 @@ def brain_status(repo_path: str = ".") -> dict[str, Any]:
         },
         "recommended_tools": [
             "brain_index_project",
+            "brain_sync_status",
+            "brain_sync_project",
+            "brain_index_job_status",
             "brain_explain_symbol",
             "search_conventions",
             "recall_context",
@@ -48,6 +57,86 @@ def brain_status(repo_path: str = ".") -> dict[str, Any]:
             "get_co_changed_files",
         ],
     }
+
+
+def brain_sync_status(
+    repo_path: str = ".",
+    include_patterns: str | list[str] | None = None,
+    exclude_patterns: str | list[str] | None = None,
+) -> dict[str, Any]:
+    """Check whether files changed enough to trigger project re-indexing."""
+    settings = get_container().settings
+    return indexing.sync_status(
+        repo_path,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
+        max_file_size_mb=settings.index_max_file_size_mb,
+    )
+
+
+def brain_sync_project(
+    repo_path: str = ".",
+    include_patterns: str | list[str] | None = None,
+    exclude_patterns: str | list[str] | None = None,
+    async_mode: bool = True,
+    force: bool = False,
+    index_conventions: bool = True,
+    conventions_path: str | None = None,
+    graph_mode: str = "full",
+    graph_persistence: bool = False,
+) -> dict[str, Any]:
+    """Trigger indexing only when the filtered project snapshot changed."""
+    status = brain_sync_status(
+        repo_path,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
+    )
+    if not force and not status["needs_sync"]:
+        return {
+            "ok": True,
+            "status": "fresh",
+            "repo_path": status["repo_path"],
+            "sync": status,
+            "job": None,
+        }
+
+    def target() -> dict[str, Any]:
+        return _run_sync_project(
+            repo_path=status["repo_path"],
+            include_patterns=include_patterns,
+            exclude_patterns=exclude_patterns,
+            index_conventions=index_conventions,
+            conventions_path=conventions_path,
+            graph_mode=graph_mode,
+            graph_persistence=graph_persistence,
+        )
+
+    if async_mode:
+        job = jobs.start_job(f"sync {status['repo_path']}", target)
+        return {
+            "ok": True,
+            "status": "queued",
+            "repo_path": status["repo_path"],
+            "sync": status,
+            "job": job,
+        }
+
+    result = target()
+    return {
+        "ok": result.get("ok") is True,
+        "status": result.get("status", "unknown"),
+        "repo_path": status["repo_path"],
+        "sync": status,
+        "job": None,
+        "result": result,
+    }
+
+
+def brain_index_job_status(job_id: str | None = None) -> dict[str, Any]:
+    """Return async indexing job status."""
+    if job_id:
+        return jobs.get_job(job_id)
+    return jobs.list_jobs()
 
 
 def brain_index_project(
@@ -133,6 +222,55 @@ def _make_codebase_memory_adapter(settings: Settings) -> CodebaseMemoryAdapter:
         binary=settings.codebase_memory_binary,
         timeout_sec=settings.codebase_memory_timeout_sec,
     )
+
+
+def _run_sync_project(
+    *,
+    repo_path: str,
+    include_patterns: str | list[str] | None,
+    exclude_patterns: str | list[str] | None,
+    index_conventions: bool,
+    conventions_path: str | None,
+    graph_mode: str,
+    graph_persistence: bool,
+) -> dict[str, Any]:
+    settings = get_container().settings
+    snapshot = indexing.snapshot_project(
+        repo_path,
+        include_patterns=include_patterns,
+        exclude_patterns=exclude_patterns,
+        max_file_size_mb=settings.index_max_file_size_mb,
+    )
+    result = brain_index_project(
+        repo_path=repo_path,
+        index_conventions=index_conventions,
+        conventions_path=conventions_path,
+        graph_mode=graph_mode,
+        graph_persistence=graph_persistence,
+    )
+    state = (
+        indexing.record_index_state(repo_path, snapshot, result)
+        if result.get("ok") is True
+        else {"ok": False, "error": "index did not complete; state was not updated"}
+    )
+    return {
+        "ok": result.get("ok") is True,
+        "status": "synced" if result.get("ok") else "partial",
+        "repo_path": repo_path,
+        "snapshot": snapshot,
+        "index": result,
+        "state": state,
+    }
+
+
+def _milvus_status(settings: Settings) -> str:
+    if settings.vector_store_backend != "milvus":
+        return "available_when_configured"
+    try:
+        import pymilvus  # type: ignore[import-not-found]  # noqa: F401
+    except Exception:
+        return "missing_dependency"
+    return "configured"
 
 
 def _resolve_repo_path(repo_path: str) -> str:

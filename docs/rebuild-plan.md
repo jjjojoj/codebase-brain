@@ -250,6 +250,8 @@ Tests:
 
 ### Phase 3: Milvus Vector Knowledge Layer
 
+Status: not implemented yet. Current code has Milvus Lite configuration fields and an optional dependency extra, but the active vector store remains SQLite until the Milvus backend passes insert/search/migration tests.
+
 Deliverables:
 
 - Add Milvus Lite backend.
@@ -279,6 +281,8 @@ Tests:
 - Token budget tests.
 
 ### Phase 5: Sync And Freshness
+
+Status: partially implemented. Current code has file filtering snapshots, `.codebrain/index-state.json`, `brain_sync_status`, `brain_sync_project`, and in-process async indexing jobs. Lock files, external sync-trigger files, and stale lock recovery are still pending.
 
 Deliverables:
 
@@ -317,6 +321,8 @@ Tests:
 
 ### Phase 7: Optional Dashboard
 
+Status: initial local read-only dashboard implemented through `codebrain dashboard`. It shows status, file snapshot, privacy, Milvus configuration state, and MCP JSON. It does not edit client config files and does not replace Attu.
+
 Deliverables:
 
 - Minimal dashboard only after MCP/CLI is stable.
@@ -339,7 +345,18 @@ Start with Phase 1 and Phase 2. This gives real capability quickly:
 6. Hide or de-emphasize raw old tools in README, but keep internal logic.
 7. Test with fake sidecar output first, then with installed `codebase-memory-mcp`.
 
-This slice proves the new direction without forcing Milvus, UI, or installer complexity immediately.
+This slice proved the new direction without forcing Milvus, dashboard, or installer complexity immediately.
+
+## Second Build Slice
+
+The next shipped slice adds operational visibility and sync freshness without changing the one-MCP-server contract:
+
+1. Add `brain_sync_status` for filtered file snapshots.
+2. Add `brain_sync_project` for sync-trigger indexing.
+3. Add `brain_index_job_status` for in-process async job visibility.
+4. Persist successful sync snapshots to `.codebrain/index-state.json`.
+5. Add `codebrain dashboard` as a local read-only UI for status and MCP config generation.
+6. Add Milvus Lite config fields and optional dependency metadata, but keep SQLite as the active default until the Milvus backend has real insert/search tests.
 
 ## Risks
 

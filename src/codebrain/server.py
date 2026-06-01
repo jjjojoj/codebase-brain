@@ -53,10 +53,13 @@ def health() -> dict[str, Any]:
     return status
 
 
-# --- Codebase Brain task-shaped tools (3) ---
+# --- Codebase Brain task-shaped tools (6) ---
 from codebrain.domains.brain import tools as brain_tools
 
 mcp.add_tool(brain_tools.brain_status)
+mcp.add_tool(brain_tools.brain_sync_status)
+mcp.add_tool(brain_tools.brain_sync_project)
+mcp.add_tool(brain_tools.brain_index_job_status)
 mcp.add_tool(brain_tools.brain_index_project)
 mcp.add_tool(brain_tools.brain_explain_symbol)
 

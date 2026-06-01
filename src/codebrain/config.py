@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     # Vector store
     vector_store_backend: str = "sqlite"
     db_path: str = ".codebrain/codebrain.db"
+    milvus_uri: str = ".codebrain/milvus_lite.db"
+    milvus_token: str | None = None
+    milvus_collection_prefix: str = "codebrain"
 
     # Domains
     conventions_enabled: bool = True
