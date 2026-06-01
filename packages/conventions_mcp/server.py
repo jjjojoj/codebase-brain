@@ -9,8 +9,8 @@ from typing import Any
 
 import yaml
 
-from packages.core.mcp_base import BrainMCP
-from packages.core.milvus_client import MilvusClient
+from core.mcp_base import BrainMCP
+from core.milvus_client import MilvusClient
 
 
 DEFAULT_CONVENTIONS_PATH = Path("~/.codebrain/conventions")
