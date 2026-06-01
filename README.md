@@ -1,49 +1,51 @@
 # Codebase Brain
 
-Codebase Brain is a conservative MCP server for sharing project conventions,
-lightweight coding-session memory, and safe Git context with AI coding tools.
+面向公司内部开发者的稳定版 MCP Server。它把项目约定、轻量会话记忆和安全的 Git 上下文暴露给 Cursor、Qoder、Codex、OpenCode、Claude Code、Windsurf 等支持 MCP 的 AI 编程工具。
 
-The `main` branch is the stable internal-use profile. Experimental history
-vector indexing and legacy multi-server code are kept on the `dev` branch.
+当前 `main` 分支是求稳版本。原来更激进的 Git 历史向量索引、多 MCP Server 原型和 Milvus 版本已经保存在 `dev` 分支。
 
-## Stable Scope
+## 稳定版范围
 
-The stable profile solves three practical problems first:
+稳定版先解决三个最实用、风险较低的问题：
 
-- Project conventions: store team rules as Markdown and retrieve them before code changes.
-- Lightweight session memory: manually record decisions, problems, and touched files.
-- Safe Git context: read blame, recent changes, and co-change patterns directly from Git.
+- 项目约定检索：把团队规范写成 Markdown，AI 修改代码前可以检索。
+- 轻量会话记忆：手动记录关键决策、问题、文件变更，方便下次召回。
+- Git 只读上下文：直接读取 blame、最近变更、经常一起变更的文件。
 
-The stable profile intentionally does not expose:
+稳定版暂时不开放：
 
-- Git history vector indexing.
-- Semantic search over indexed Git history.
-- OpenAI/cloud embedding by default.
-- Legacy `packages/*` multi-server entry points.
-- Automatic file watchers.
+- Git 历史向量索引。
+- 已索引 Git 历史的语义搜索。
+- 默认 OpenAI / 云端 embedding。
+- legacy `packages/*` 多 MCP Server 入口。
+- 自动 watch / 自动同步。
 
-## Tools Exposed
+这些能力不是永远不做，而是等安全过滤、真实客户端测试和团队使用反馈成熟后再从 `dev` 分支挑选回来。
 
-| Tool | Purpose |
+## 工具清单
+
+| 工具 | 说明 |
 | --- | --- |
-| `health` | Report server, storage, and embedding status. |
-| `add_convention` | Add one project convention manually. |
-| `search_conventions` | Search indexed conventions with local vector search. |
-| `list_conventions` | List convention metadata. |
-| `index_convention_files` | Index Markdown files from `.codebrain/conventions`. |
-| `start_session` | Start one lightweight session and recall related sessions. |
-| `record_decision` | Record a key implementation or architecture decision. |
-| `record_problem` | Record a solved problem and its solution. |
-| `record_file_change` | Record a file changed during the current session. |
-| `end_session` | Save the session memory. |
-| `recall_context` | Recall similar saved sessions. |
-| `get_blame` | Read Git blame metadata for a line range. |
-| `get_recent_changes` | Read recent commits touching a file. |
-| `get_co_changed_files` | Find files historically changed together. |
+| `health` | 查看服务、存储、embedding 状态。 |
+| `add_convention` | 手动添加一条项目约定。 |
+| `search_conventions` | 检索已经索引的项目约定。 |
+| `list_conventions` | 列出约定元信息。 |
+| `index_convention_files` | 索引 `.codebrain/conventions` 下的 Markdown 约定文件。 |
+| `start_session` | 开始一个轻量会话，并召回相似历史会话。 |
+| `record_decision` | 记录关键实现或架构决策。 |
+| `record_problem` | 记录遇到的问题和解决方案。 |
+| `record_file_change` | 记录本次会话修改过的文件。 |
+| `end_session` | 保存本次会话记忆。 |
+| `recall_context` | 根据任务描述召回相似会话。 |
+| `get_blame` | 读取文件某段代码的 Git blame 信息。 |
+| `get_recent_changes` | 读取某个文件的最近提交记录。 |
+| `get_co_changed_files` | 查找历史上经常和某文件一起修改的文件。 |
 
-## Install
+## 安装
 
-Use Python 3.11+.
+需要 Python 3.11+。推荐 Python 3.12。
+
+macOS / Linux:
 
 ```bash
 git clone https://github.com/jjjojoj/codebase-brain.git
@@ -61,13 +63,11 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\pip install -e ".[local]"
 ```
 
-The `local` extra installs `sentence-transformers` for local CPU embeddings.
-Do not use cloud embeddings for company code unless your organization has
-explicitly approved that data flow.
+`local` extra 会安装 `sentence-transformers`，默认在本机 CPU 上生成 embedding。公司代码不要默认使用云端 embedding，除非公司明确批准这类数据流。
 
-## Project Conventions
+## 项目约定文件
 
-Create convention files in each repository:
+在每个业务仓库里创建：
 
 ```text
 your-project/
@@ -78,32 +78,29 @@ your-project/
       module-boundaries.md
 ```
 
-Each file uses YAML frontmatter:
+每个 Markdown 文件使用 YAML frontmatter：
 
 ```markdown
 ---
 module: auth
-title: Auth error handling
+title: 认证模块错误处理约定
 tags: [auth, errors]
 ---
 
-Authentication code returns typed AuthError values. Do not raise generic
-exceptions across the module boundary.
+认证相关代码返回明确的 AuthError 类型，不要跨模块边界抛出通用异常。
 ```
 
-Then ask your AI coding tool to call:
+然后让 AI 工具调用：
 
 ```text
 index_convention_files
 ```
 
-or pass an explicit absolute path when the client does not launch the MCP
-server from the project root.
+如果 MCP 客户端不是从项目根目录启动，给 `index_convention_files` 传绝对路径。
 
-## MCP Configuration
+## MCP 配置
 
-Use one MCP server named `codebase-brain`. Prefer absolute paths; not every
-MCP client expands `~` consistently.
+只配置一个 MCP Server，名字建议叫 `codebase-brain`。尽量使用绝对路径，因为不同 MCP 客户端对 `~` 的展开行为不完全一致。
 
 macOS / Linux:
 
@@ -139,54 +136,44 @@ Windows:
 }
 ```
 
-This shape works for MCP-capable tools such as Cursor, Qoder, Codex CLI,
-OpenCode, Claude Code, Windsurf, and Cline. The exact settings file location
-depends on the client.
+这类配置适用于 Cursor、Qoder、Codex CLI、OpenCode、Claude Code、Windsurf、Cline 等支持 MCP 的工具。不同工具的 MCP 配置文件位置不同，但 `command`、`args`、`env` 结构基本一致。
 
-## Recommended Team Workflow
+## 推荐使用流程
 
-1. Add 5-20 high-value conventions for testing, error handling, naming,
-   module boundaries, and review expectations.
-2. Run `index_convention_files`.
-3. At the start of a task, call `start_session`.
-4. During the task, call `record_decision`, `record_problem`, and
-   `record_file_change` only for durable facts.
-5. Before changing unfamiliar files, call `get_recent_changes`,
-   `get_blame`, or `get_co_changed_files`.
-6. End the task with `end_session`.
+1. 先写 5 到 20 条高价值约定，比如测试、错误处理、命名、模块边界、代码评审要求。
+2. 调用 `index_convention_files`。
+3. 开始任务时调用 `start_session`。
+4. 任务中只把长期有用的信息写入 `record_decision`、`record_problem`、`record_file_change`。
+5. 修改不熟悉的文件前，调用 `get_recent_changes`、`get_blame` 或 `get_co_changed_files`。
+6. 任务结束时调用 `end_session`。
 
-Keep memories short and factual. Do not store secrets, credentials, customer
-data, or private production logs.
+记忆内容要短、事实化。不要写入密钥、凭据、客户数据、生产日志或其它敏感信息。
 
-## Configuration
+## 配置项
 
-Environment variables use the `CODEBRAIN_` prefix.
+环境变量统一使用 `CODEBRAIN_` 前缀。
 
-| Variable | Default | Notes |
+| 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `CODEBRAIN_EMBEDDER_PROVIDER` | `sentence-transformers` | Stable local default. |
-| `CODEBRAIN_EMBEDDER_MODEL` | `all-MiniLM-L6-v2` | Small local model for fast startup. |
-| `CODEBRAIN_DB_PATH` | `.codebrain/codebrain.db` | Set this to an absolute per-project path. |
-| `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` | `.codebrain/conventions` | Set this to an absolute per-project path. |
-| `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS` | `false` | Keep false for stable internal use. |
-| `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED` | `false` | Keep false for stable internal use. |
+| `CODEBRAIN_EMBEDDER_PROVIDER` | `sentence-transformers` | 稳定版默认本地 provider。 |
+| `CODEBRAIN_EMBEDDER_MODEL` | `all-MiniLM-L6-v2` | 启动快的小模型，适合 MVP。 |
+| `CODEBRAIN_DB_PATH` | `.codebrain/codebrain.db` | 建议配置成每个项目自己的绝对路径。 |
+| `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` | `.codebrain/conventions` | 建议配置成每个项目自己的绝对路径。 |
+| `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS` | `false` | 稳定内测保持 false。 |
+| `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED` | `false` | 稳定内测保持 false。 |
 
-## Disabled Experimental Capabilities
+## 被禁用的实验能力
 
-`index_git_history` and `search_history` are not registered in the stable MCP
-surface. Their implementation remains behind a disabled setting for future
-work, but stable users should rely on the safe Git read-only tools instead.
+`index_git_history` 和 `search_history` 不会注册到稳定版 MCP 工具面。对应实现仍然被配置开关保护，后续如果补齐 secret 过滤、文件过滤、真实客户端测试，再考虑开放。
 
-OpenAI embeddings are blocked unless `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=true`
-is explicitly set. Enabling it means indexed text can leave your machine.
+OpenAI embedding 默认被禁用。只有显式设置 `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=true` 才能启用；启用意味着被索引文本可能离开本机。
 
-## Development
+## 开发与测试
 
-Install dev dependencies and run tests:
+安装开发依赖并运行测试：
 
 ```bash
 uv run --python 3.12 --extra dev pytest -q
 ```
 
-The stable branch is `main`. The pre-stabilization experimental version is
-available on `dev`.
+当前稳定分支是 `main`。原实验版保存在 `dev`。
