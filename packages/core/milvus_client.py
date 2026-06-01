@@ -31,7 +31,7 @@ class MilvusClient:
         self._connect()
 
     def _connect(self) -> None:
-        """Create the underlying pymilvus client."""
+        """Create the underlying pymilvus client with retries for Windows."""
         try:
             from pymilvus import DataType
             from pymilvus import MilvusClient as PyMilvusClient
@@ -41,21 +41,30 @@ class MilvusClient:
                 "Install project dependencies before using MilvusClient."
             ) from exc
 
-        try:
-            self._client = PyMilvusClient(uri=self.config.milvus_uri)
-            self._data_type = DataType
-        except NotImplementedError:
-            # Milvus Lite 3.0 on Windows throws non-fatal NotImplementedError
-            # for AllocTimestamp gRPC call, but server is actually running.
-            # Retry with a fresh connection.
-            import time
-            time.sleep(1)
-            self._client = PyMilvusClient(uri=self.config.milvus_uri)
-            self._data_type = DataType
-        except Exception as exc:
+        import time
+        last_exc = None
+        for attempt in range(3):
+            try:
+                self._client = PyMilvusClient(uri=self.config.milvus_uri)
+                self._data_type = DataType
+                return  # success
+            except NotImplementedError:
+                # Milvus Lite 3.0 on Windows: non-fatal gRPC noise, retry
+                time.sleep(1 + attempt)
+            except Exception as exc:
+                last_exc = exc
+                if "lock" in str(exc).lower() or "permission" in str(exc).lower():
+                    # Another process is using the DB, wait and retry
+                    time.sleep(2)
+                else:
+                    raise RuntimeError(
+                        f"Failed to connect to Milvus Lite at {self.config.milvus_uri!r}."
+                    ) from exc
+
+        if last_exc:
             raise RuntimeError(
-                f"Failed to connect to Milvus Lite at {self.config.milvus_uri!r}."
-            ) from exc
+                f"Failed to connect to Milvus Lite after 3 attempts at {self.config.milvus_uri!r}."
+            ) from last_exc
 
     @property
     def client(self) -> Any:
