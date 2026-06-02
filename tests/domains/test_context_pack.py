@@ -48,3 +48,19 @@ def test_context_pack_keeps_local_context_when_graph_is_unavailable() -> None:
     assert pack["similar_sessions"] == local_context["similar_sessions"]
     assert pack["related_symbols"] == []
     assert "graph sidecar not available" in pack["warnings"]
+
+
+def test_context_pack_returns_valid_empty_pack_when_all_sources_empty() -> None:
+    pack = assemble_context_pack(
+        task="重构 auth 模块",
+        local=None,
+        graph=None,
+    )
+
+    assert pack["critical_conventions"] == []
+    assert pack["related_symbols"] == []
+    assert pack["recent_changes"] == []
+    assert pack["similar_sessions"] == []
+    assert "graph sidecar not available" in pack["warnings"]
+    assert "context pack has no results" in pack["warnings"]
+    assert "run brain_index_project to index your repository" in pack["suggested_next_steps"]

@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
-from codebrain.config import Settings
 
 
 def gather_graph_context(
@@ -15,14 +14,15 @@ def gather_graph_context(
     repo_path: str = ".",
     top_k: int = 5,
     adapter: CodebaseMemoryAdapter | None = None,
-    settings: Settings | None = None,
 ) -> dict[str, Any]:
     """Gather graph symbols through codebase-memory-mcp when available."""
-    settings = settings or Settings()
-    graph = adapter or CodebaseMemoryAdapter(
-        binary=settings.codebase_memory_binary,
-        timeout_sec=settings.codebase_memory_timeout_sec,
-    )
+    if adapter is None:
+        return {
+            "status": "missing",
+            "related_symbols": [],
+            "warnings": ["graph sidecar not available"],
+        }
+    graph = adapter
     status = graph.status()
     if not status.get("available"):
         return {

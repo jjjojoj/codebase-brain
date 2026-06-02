@@ -12,6 +12,7 @@ from typing import Any
 from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
 from codebrain.config import Settings
 from codebrain.core.di import get_container
+from codebrain.core.repository import Repository
 from codebrain.domains.brain import context_pack, graph_context, indexing, jobs, local_context
 from codebrain.domains.conventions import tools as convention_tools
 
@@ -29,18 +30,20 @@ def brain_context_for_task(
     resolved_repo = _resolve_repo_path(repo_path)
     files = _clean_text_list(files)
     symbols = _clean_text_list(symbols)
+    container = get_container()
     local = local_context.gather_local_context(
         task=task,
         files=files,
         repo_path=resolved_repo,
         top_k=top_k,
+        repository=_make_repository(),
     )
     graph = graph_context.gather_graph_context(
         task=task,
         symbols=symbols,
         repo_path=resolved_repo,
         top_k=top_k,
-        settings=get_container().settings,
+        adapter=_make_codebase_memory_adapter(container.settings),
     )
     return context_pack.assemble_context_pack(task=task, local=local, graph=graph)
 
@@ -252,6 +255,11 @@ def _make_codebase_memory_adapter(settings: Settings) -> CodebaseMemoryAdapter:
         binary=settings.codebase_memory_binary,
         timeout_sec=settings.codebase_memory_timeout_sec,
     )
+
+
+def _make_repository() -> Repository:
+    container = get_container()
+    return Repository(container.vector_store, container.embedder)
 
 
 def _run_sync_project(

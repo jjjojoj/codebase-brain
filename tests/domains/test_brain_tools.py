@@ -251,25 +251,42 @@ def test_brain_context_for_task_assembles_local_and_graph_context(
     monkeypatch,
     container,
 ) -> None:
+    repository = object()
+    graph_adapter = MissingGraphAdapter()
+    monkeypatch.setattr(brain_tools, "_make_repository", lambda: repository)
     monkeypatch.setattr(
-        brain_tools.local_context,
-        "gather_local_context",
-        lambda **kwargs: {
+        brain_tools,
+        "_make_codebase_memory_adapter",
+        lambda settings: graph_adapter,
+    )
+
+    def fake_local_context(**kwargs: Any) -> dict[str, Any]:
+        assert kwargs["repository"] is repository
+        return {
             "status": {"conventions": "ready", "history": "ready", "memory": "ready"},
             "critical_conventions": [{"title": "Auth boundaries"}],
             "recent_changes": [{"file_path": "src/auth/tokens.py"}],
             "similar_sessions": [{"task": "Auth refactor"}],
             "warnings": [],
-        },
+        }
+
+    def fake_graph_context(**kwargs: Any) -> dict[str, Any]:
+        assert kwargs["adapter"] is graph_adapter
+        return {
+            "status": "missing",
+            "related_symbols": [],
+            "warnings": ["graph sidecar not available"],
+        }
+
+    monkeypatch.setattr(
+        brain_tools.local_context,
+        "gather_local_context",
+        fake_local_context,
     )
     monkeypatch.setattr(
         brain_tools.graph_context,
         "gather_graph_context",
-        lambda **kwargs: {
-            "status": "missing",
-            "related_symbols": [],
-            "warnings": ["graph sidecar not available"],
-        },
+        fake_graph_context,
     )
 
     result = brain_tools.brain_context_for_task(

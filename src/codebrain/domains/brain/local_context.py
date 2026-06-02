@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from codebrain.domains.conventions import tools as convention_tools
-from codebrain.domains.history import tools as history_tools
-from codebrain.domains.session_memory import tools as session_tools
+from codebrain.core.repository import Repository
+from codebrain.domains.conventions import logic as convention_logic
+from codebrain.domains.history import git_indexer
+from codebrain.domains.session_memory import logic as session_logic
 
 
 def gather_local_context(
@@ -15,13 +16,16 @@ def gather_local_context(
     files: list[str] | None = None,
     repo_path: str = ".",
     top_k: int = 5,
+    repository: Repository | None = None,
 ) -> dict[str, Any]:
     """Gather conventions, session memory, and Git read-only signals."""
     warnings: list[str] = []
-    conventions = _safe_search_conventions(task, min(top_k, 3), warnings)
-    if not conventions:
+    if repository is None:
+        warnings.append("repository unavailable for local vector context")
+    conventions = _safe_search_conventions(repository, task, min(top_k, 3), warnings)
+    if repository is not None and not conventions:
         warnings.append("no matching conventions found; index .codebrain/conventions if needed")
-    sessions = _safe_recall_sessions(task, min(top_k, 3), warnings)
+    sessions = _safe_recall_sessions(repository, task, min(top_k, 3), warnings)
     recent_changes = _safe_recent_changes(files or [], repo_path, min(top_k, 5), warnings)
     return {
         "status": {
@@ -37,24 +41,30 @@ def gather_local_context(
 
 
 def _safe_search_conventions(
+    repository: Repository | None,
     task: str,
     top_k: int,
     warnings: list[str],
 ) -> list[dict[str, Any]]:
+    if repository is None:
+        return []
     try:
-        return convention_tools.search_conventions(task, top_k=top_k)
+        return convention_logic.search_conventions(task, repository, top_k=top_k)
     except Exception as exc:
         warnings.append(f"convention search unavailable: {exc}")
         return []
 
 
 def _safe_recall_sessions(
+    repository: Repository | None,
     task: str,
     top_k: int,
     warnings: list[str],
 ) -> list[dict[str, Any]]:
+    if repository is None:
+        return []
     try:
-        return session_tools.recall_context(task, top_k=top_k)
+        return session_logic.recall_context(repository, task, top_k=top_k)
     except Exception as exc:
         warnings.append(f"session memory unavailable: {exc}")
         return []
@@ -71,10 +81,10 @@ def _safe_recent_changes(
         if len(changes) >= limit:
             break
         try:
-            for change in history_tools.get_recent_changes(
+            for change in git_indexer.get_recent_changes(
+                repo_path,
                 file_path,
                 limit=max(1, limit - len(changes)),
-                repo_path=repo_path,
             ):
                 changes.append({"file_path": file_path, **change})
                 if len(changes) >= limit:

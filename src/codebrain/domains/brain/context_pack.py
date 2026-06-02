@@ -15,11 +15,17 @@ def assemble_context_pack(
     local = local or {}
     graph = graph or _missing_graph_context()
 
+    critical_conventions = _as_list(local.get("critical_conventions"))
+    related_symbols = _as_list(graph.get("related_symbols"))
+    recent_changes = _as_list(local.get("recent_changes"))
+    similar_sessions = _as_list(local.get("similar_sessions"))
     warnings = [
         *_as_list(local.get("warnings")),
         *_as_list(graph.get("warnings")),
     ]
-    related_symbols = _as_list(graph.get("related_symbols"))
+    if not any([critical_conventions, related_symbols, recent_changes, similar_sessions]):
+        warnings.append("context pack has no results")
+
     local_status = _as_dict(local.get("status"))
     status = {
         "local": _local_status(local),
@@ -30,10 +36,10 @@ def assemble_context_pack(
     return {
         "task": task,
         "status": status,
-        "critical_conventions": _as_list(local.get("critical_conventions")),
+        "critical_conventions": critical_conventions,
         "related_symbols": related_symbols,
-        "recent_changes": _as_list(local.get("recent_changes")),
-        "similar_sessions": _as_list(local.get("similar_sessions")),
+        "recent_changes": recent_changes,
+        "similar_sessions": similar_sessions,
         "warnings": warnings,
         "suggested_next_steps": _suggested_next_steps(status, warnings),
     }
@@ -67,6 +73,8 @@ def _local_status(local: dict[str, Any]) -> str:
 
 def _suggested_next_steps(status: dict[str, Any], warnings: list[str]) -> list[str]:
     steps: list[str] = []
+    if status.get("local") == "empty":
+        steps.append("run brain_index_project to index your repository")
     if status.get("graph") == "missing":
         steps.append("install or configure codebase-memory-mcp for graph context")
     if any("convention" in warning for warning in warnings):
