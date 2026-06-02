@@ -35,7 +35,7 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 - Git 历史向量索引。
 - 已索引 Git 历史的语义搜索。
-- 默认 OpenAI / 云端 embedding。
+- 把 OpenAI / 云端 embedding 设为默认。
 - legacy `packages/*` 多 MCP Server 入口。
 - 自动 watch 常驻文件监听。
 - 自动改写各类 AI 客户端配置。
@@ -67,6 +67,8 @@ py -3.12 -m venv .venv
 ```
 
 `local` extra 会安装 `sentence-transformers`。第一次启动时模型可能需要下载；公司私有代码或敏感仓库建议保持这个本地方案。
+
+默认 embedding provider 是本地 `sentence-transformers`。只有同时设置 `CODEBRAIN_EMBEDDER_PROVIDER=openai` 和 `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=true`，才会启用 OpenAI embedding。
 
 如果团队想接入已有的 Milvus Standalone 或 Zilliz Cloud，可以安装轻量客户端依赖：
 
