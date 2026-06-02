@@ -123,3 +123,20 @@ def test_context_pack_adds_error_and_api_checklist_items() -> None:
         in pack["suggested_next_steps"]
     )
     assert "check response model, docstring, and version metadata" in pack["suggested_next_steps"]
+
+
+def test_context_pack_warns_about_broad_exception_for_handle_or_try_tasks() -> None:
+    for task in (
+        "Handle failures in a Django CSV export command",
+        "Try to recover failed FastAPI report requests",
+    ):
+        pack = assemble_context_pack(
+            task=task,
+            local={"critical_conventions": [{"title": "Error handling"}], "warnings": []},
+            graph={"status": "ready", "related_symbols": [], "warnings": []},
+        )
+
+        assert (
+            "avoid broad Exception unless intentionally documented"
+            in pack["suggested_next_steps"]
+        )

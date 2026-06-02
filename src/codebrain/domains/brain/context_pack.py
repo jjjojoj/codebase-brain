@@ -9,7 +9,7 @@ from typing import Any
 _TASK_CHECKLIST = {
     r"\b(export|csv|report)\b": "ensure deterministic ordering (e.g. .order_by('id'))",
     r"\bmanagement\s+command\b": "check requires_system_checks = [] for read-only commands",
-    r"\b(exception|error\s+handling)\b": "avoid broad Exception unless intentionally documented",
+    r"\b(exception|error|handle|handling|try)\b": "avoid broad Exception unless intentionally documented",
     r"\b(api|fastapi)\b": "check response model, docstring, and version metadata",
 }
 
