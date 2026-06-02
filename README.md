@@ -72,6 +72,8 @@ py -3.12 -m venv .venv
 
 首次运行可能提示 `unauthenticated requests to HF Hub`。可以设置 `HF_TOKEN` 提高 Hugging Face Hub 下载稳定性和限额，但不是必需项；默认模型 `all-MiniLM-L6-v2` 约 90MB。
 
+`minimal` extra 不安装 embedding 依赖，只适合 CI、查看配置、启动 MCP 工具面或验证空项目路径。真实索引约定、语义搜索和会话记忆召回仍然需要 `.[local]`，或把 `CODEBRAIN_EMBEDDER_PROVIDER` 显式配置为团队批准的本地 Ollama。
+
 稳定版只支持本地 embedding provider：默认 `sentence-transformers`，也可以显式设置 `CODEBRAIN_EMBEDDER_PROVIDER=ollama` 使用本机 Ollama 服务。不支持 `openai` provider。
 
 如果团队想接入已有的 Milvus Standalone 或 Zilliz Cloud，可以安装轻量客户端依赖：

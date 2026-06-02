@@ -20,16 +20,21 @@ class SentenceTransformerEmbedder(Embedder):
         self.settings = settings or Settings()
         self.model_name = self.settings.embedder_model
         self._model: Any | None = None
-        self._load_model()
 
     def _load_model(self) -> None:
         try:
             from sentence_transformers import SentenceTransformer
         except ImportError as exc:
             raise RuntimeError(
-                "sentence-transformers is required for local embeddings."
+                "sentence-transformers is required for local embeddings. "
+                "Install with: pip install -e '.[local]', or set "
+                "CODEBRAIN_EMBEDDER_PROVIDER=ollama for an approved local Ollama service."
             ) from exc
         self._model = SentenceTransformer(self.model_name)
+
+    def _ensure_loaded(self) -> None:
+        if self._model is None:
+            self._load_model()
 
     def embed(self, text: str) -> list[float]:
         if not isinstance(text, str):
@@ -37,12 +42,13 @@ class SentenceTransformerEmbedder(Embedder):
         return self.embed_batch([text])[0]
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        if self._model is None:
-            raise RuntimeError("Embedding model is not loaded.")
         if not texts:
             return []
         if not all(isinstance(t, str) for t in texts):
             raise TypeError("texts must be a list of strings")
+        self._ensure_loaded()
+        if self._model is None:
+            raise RuntimeError("Embedding model is not loaded.")
         embeddings = self._model.encode(
             texts, normalize_embeddings=True, convert_to_numpy=True
         )
