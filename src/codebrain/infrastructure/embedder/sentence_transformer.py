@@ -51,7 +51,10 @@ class SentenceTransformerEmbedder(Embedder):
     def dimension(self) -> int:
         if self._model is not None:
             try:
-                return self._model.get_sentence_embedding_dimension()
+                return self._model.get_embedding_dimension()
             except Exception:
-                pass
+                try:
+                    return self._model.get_sentence_embedding_dimension()
+                except Exception:
+                    pass
         return self.DEFAULT_DIMENSION

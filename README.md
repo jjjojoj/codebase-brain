@@ -48,7 +48,7 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 ## Quick Start
 
-需要 Python 3.11+，推荐 Python 3.12。
+需要 Python 3.11+，推荐 Python 3.12。Linux/WSL 上不要假设 `python3` 一定满足版本要求；很多发行版的 `python3` 仍可能指向 Python 3.10，所以 Quick Start 明确使用 `python3.12`。
 
 ```bash
 git clone https://github.com/jjjojoj/codebase-brain.git
@@ -69,6 +69,8 @@ py -3.12 -m venv .venv
 ```
 
 `local` extra 会安装 `sentence-transformers`。第一次启动时模型可能需要下载；公司私有代码或敏感仓库建议保持这个本地方案。
+
+首次运行可能提示 `unauthenticated requests to HF Hub`。可以设置 `HF_TOKEN` 提高 Hugging Face Hub 下载稳定性和限额，但不是必需项；默认模型 `all-MiniLM-L6-v2` 约 90MB。
 
 稳定版只支持本地 embedding provider：默认 `sentence-transformers`，也可以显式设置 `CODEBRAIN_EMBEDDER_PROVIDER=ollama` 使用本机 Ollama 服务。不支持 `openai` provider。
 
@@ -317,7 +319,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
 | `CODEBRAIN_EMBEDDER_PROVIDER` | `sentence-transformers` | 稳定版只支持本地 provider：`sentence-transformers` 或 `ollama`。 |
-| `CODEBRAIN_EMBEDDER_MODEL` | `all-MiniLM-L6-v2` | 启动快的小模型，适合 MVP。 |
+| `CODEBRAIN_EMBEDDER_MODEL` | `all-MiniLM-L6-v2` | 英文为主的小模型（384 维，约 90MB）。中文为主的约定推荐 `paraphrase-multilingual-MiniLM-L12-v2`（384 维，约 470MB）。 |
 | `CODEBRAIN_OLLAMA_URL` | `http://localhost:11434` | 本机 Ollama embedding 服务地址；保持 localhost，除非团队明确批准内网服务。 |
 | `CODEBRAIN_DB_PATH` | `.codebrain/codebrain.db` | 建议配置成每个项目自己的绝对路径。 |
 | `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` | `.codebrain/conventions` | 建议配置成每个项目自己的绝对路径。 |
@@ -365,6 +367,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | dashboard 打不开 | 确认 `codebrain dashboard` 进程还在运行，或换一个未被占用的端口。 |
 | `brain_sync_status` 总是需要同步 | 检查是否有生成文件未被过滤；可传 `exclude_patterns` 增加忽略规则。 |
 | 设置 `CODEBRAIN_VECTOR_STORE_BACKEND=milvus` 后启动失败 | 远程 Milvus/Zilliz 先安装 `.venv/bin/python -m pip install -e ".[milvus]"`；本地 Milvus Lite 安装 `.venv/bin/python -m pip install -e ".[milvus-lite]"`，并确认 `CODEBRAIN_MILVUS_URI` 指向可写本地路径或可访问的远程 Milvus。 |
+| 首次安装下载超过 2GB | `.[local]` 依赖 PyTorch + CUDA 相关 wheel 时体积可能很大，属于正常现象。安装完成后 `.venv/` 可能占用约 3-4GB。 |
 | 第一次启动慢 | `sentence-transformers` 第一次加载或下载模型会比较慢。 |
 | 不想任何文本离开本机 | 使用默认 `sentence-transformers`；不要配置远程 Milvus/Zilliz 或远程 Ollama URL。 |
 

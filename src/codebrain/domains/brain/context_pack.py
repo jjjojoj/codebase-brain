@@ -41,7 +41,13 @@ def assemble_context_pack(
         "recent_changes": recent_changes,
         "similar_sessions": similar_sessions,
         "warnings": warnings,
-        "suggested_next_steps": _suggested_next_steps(status, warnings),
+        "suggested_next_steps": _suggested_next_steps(
+            status,
+            warnings,
+            critical_conventions=critical_conventions,
+            recent_changes=recent_changes,
+            similar_sessions=similar_sessions,
+        ),
     }
 
 
@@ -71,10 +77,21 @@ def _local_status(local: dict[str, Any]) -> str:
     return "empty"
 
 
-def _suggested_next_steps(status: dict[str, Any], warnings: list[str]) -> list[str]:
+def _suggested_next_steps(
+    status: dict[str, Any],
+    warnings: list[str],
+    *,
+    critical_conventions: list[Any],
+    recent_changes: list[Any],
+    similar_sessions: list[Any],
+) -> list[str]:
     steps: list[str] = []
     if status.get("local") == "empty":
         steps.append("run brain_index_project to index your repository")
+    if not any([critical_conventions, recent_changes, similar_sessions]):
+        steps.append(
+            "no context found for this task; try broader keywords or index conventions first"
+        )
     if status.get("graph") == "missing":
         steps.append("install or configure codebase-memory-mcp for graph context")
     if any("convention" in warning for warning in warnings):

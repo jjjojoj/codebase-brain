@@ -64,3 +64,31 @@ def test_context_pack_returns_valid_empty_pack_when_all_sources_empty() -> None:
     assert "graph sidecar not available" in pack["warnings"]
     assert "context pack has no results" in pack["warnings"]
     assert "run brain_index_project to index your repository" in pack["suggested_next_steps"]
+    assert (
+        "no context found for this task; try broader keywords or index conventions first"
+        in pack["suggested_next_steps"]
+    )
+
+
+def test_context_pack_suggests_broader_keywords_when_local_context_is_empty() -> None:
+    pack = assemble_context_pack(
+        task="重构 auth 模块",
+        local={
+            "status": {"conventions": "empty", "history": "empty", "memory": "empty"},
+            "critical_conventions": [],
+            "recent_changes": [],
+            "similar_sessions": [],
+            "warnings": [],
+        },
+        graph={
+            "status": "ready",
+            "related_symbols": [{"name": "AuthService"}],
+            "warnings": [],
+        },
+    )
+
+    assert pack["related_symbols"] == [{"name": "AuthService"}]
+    assert (
+        "no context found for this task; try broader keywords or index conventions first"
+        in pack["suggested_next_steps"]
+    )
