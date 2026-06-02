@@ -129,6 +129,7 @@ def test_context_pack_warns_about_broad_exception_for_handle_or_try_tasks() -> N
     for task in (
         "Handle failures in a Django CSV export command",
         "Try to recover failed FastAPI report requests",
+        "FastAPI endpoint catches exceptions from a backend call",
     ):
         pack = assemble_context_pack(
             task=task,
