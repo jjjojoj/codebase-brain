@@ -6,6 +6,13 @@ from codebrain.core.repository import Repository
 from codebrain.domains.conventions import logic
 
 
+def _write_convention(path, *, module: str, title: str, content: str) -> None:
+    path.write_text(
+        f"---\nmodule: {module}\ntitle: {title}\ntags: []\n---\n\n{content}\n",
+        encoding="utf-8",
+    )
+
+
 def test_add_convention(repository: Repository) -> None:
     """Adding a convention should return ok with an ID."""
     result = logic.add_convention(
@@ -82,3 +89,80 @@ def test_search_top_k_validation(repository: Repository) -> None:
     """top_k < 1 should raise ValueError."""
     with pytest.raises(ValueError, match="top_k"):
         logic.search_conventions("query", repository, top_k=0)
+
+
+def test_index_convention_files_warns_about_low_signal_content(
+    tmp_path,
+    repository: Repository,
+) -> None:
+    """Quality warnings should not prevent convention indexing."""
+    conventions_dir = tmp_path / "conventions"
+    conventions_dir.mkdir()
+    _write_convention(
+        conventions_dir / "long.md",
+        module="docs",
+        title="Verbose rule",
+        content=" ".join(["keep rule actionable"] * 180),
+    )
+    _write_convention(
+        conventions_dir / "django.md",
+        module="django",
+        title="Django internals",
+        content="Avoid turning creation_counter or contribute_to_class internals into rules.",
+    )
+    _write_convention(
+        conventions_dir / "fastapi.md",
+        module="fastapi",
+        title="FastAPI internals",
+        content="Do not write solve_dependencies or get_flat_dependant as app conventions.",
+    )
+
+    result = logic.index_convention_files(repository, str(conventions_dir))
+
+    assert result["indexed"] == 3
+    assert result["skipped"] == 0
+    assert result["errors"] == []
+    warnings = result["warnings"]
+    assert any(warning["code"] == "long_content" for warning in warnings)
+    assert any(warning.get("keyword") == "creation_counter" for warning in warnings)
+    assert any(warning.get("keyword") == "solve_dependencies" for warning in warnings)
+
+
+def test_index_convention_files_uses_env_quality_keywords(
+    monkeypatch,
+    tmp_path,
+    repository: Repository,
+) -> None:
+    monkeypatch.setenv("CODEBRAIN_CONVENTION_QUALITY_KEYWORDS", "fixture_magic, MetaHook")
+    conventions_dir = tmp_path / "conventions"
+    conventions_dir.mkdir()
+    _write_convention(
+        conventions_dir / "pytest.md",
+        module="pytest",
+        title="Pytest internals",
+        content="Do not turn fixture_magic into a team convention.",
+    )
+
+    result = logic.index_convention_files(repository, str(conventions_dir))
+
+    assert result["indexed"] == 1
+    assert any(warning.get("keyword") == "fixture_magic" for warning in result["warnings"])
+
+
+def test_index_convention_files_does_not_warn_for_lowercase_options(
+    tmp_path,
+    repository: Repository,
+) -> None:
+    conventions_dir = tmp_path / "conventions"
+    conventions_dir.mkdir()
+    _write_convention(
+        conventions_dir / "params.md",
+        module="api",
+        title="Query options",
+        content="Expose only documented query options in public handlers.",
+    )
+
+    result = logic.index_convention_files(repository, str(conventions_dir))
+
+    assert result["indexed"] == 1
+    assert result["warnings"] == []

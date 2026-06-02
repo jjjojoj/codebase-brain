@@ -92,3 +92,34 @@ def test_context_pack_suggests_broader_keywords_when_local_context_is_empty() ->
         "no context found for this task; try broader keywords or index conventions first"
         in pack["suggested_next_steps"]
     )
+
+
+def test_context_pack_adds_task_checklist_for_common_omissions() -> None:
+    pack = assemble_context_pack(
+        task="Write a Django management command to export users as CSV",
+        local={
+            "status": {"conventions": "ready", "history": "empty", "memory": "empty"},
+            "critical_conventions": [{"title": "Management commands"}],
+            "recent_changes": [],
+            "similar_sessions": [],
+            "warnings": [],
+        },
+        graph={"status": "missing", "related_symbols": [], "warnings": []},
+    )
+
+    assert "ensure deterministic ordering (e.g. .order_by('id'))" in pack["suggested_next_steps"]
+    assert "check requires_system_checks = [] for read-only commands" in pack["suggested_next_steps"]
+
+
+def test_context_pack_adds_error_and_api_checklist_items() -> None:
+    pack = assemble_context_pack(
+        task="Fix FastAPI error handling for the report endpoint",
+        local={"critical_conventions": [{"title": "API errors"}], "warnings": []},
+        graph={"status": "ready", "related_symbols": [], "warnings": []},
+    )
+
+    assert (
+        "avoid broad Exception unless intentionally documented"
+        in pack["suggested_next_steps"]
+    )
+    assert "check response model, docstring, and version metadata" in pack["suggested_next_steps"]

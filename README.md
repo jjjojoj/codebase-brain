@@ -161,6 +161,8 @@ tags: [auth, errors]
 认证相关代码返回明确的 AuthError 类型，不要跨模块边界抛出通用异常。
 ```
 
+让 Qoder、Cursor、Codex 或其它 AI 从框架/业务源码提取约定前，先让它读取 `templates/conventions/EXTRACTION-GUIDE.md`。这个模板要求只提取开发者应该遵守的模式，不把框架内部实现细节写成约定，并且必须从测试文件中提取测试编写模式。
+
 索引约定：
 
 ```bash
@@ -168,7 +170,7 @@ CODEBRAIN_DB_PATH=/ABS/PATH/your-project/.codebrain/codebrain.db \
   .venv/bin/codebrain index --path /ABS/PATH/your-project/.codebrain/conventions
 ```
 
-也可以在 MCP 客户端里调用 `index_convention_files`。如果客户端不是从业务仓库根目录启动，请传入 `.codebrain/conventions` 的绝对路径。
+也可以在 MCP 客户端里调用 `index_convention_files`。如果客户端不是从业务仓库根目录启动，请传入 `.codebrain/conventions` 的绝对路径。索引结果里的 `warnings` 不会阻断入库，但应该认真处理；它们通常表示约定太长，或包含框架内部实现关键词。
 
 ## MCP 配置
 
@@ -222,6 +224,37 @@ args = ["serve"]
 [mcp_servers.codebase-brain.env]
 CODEBRAIN_DB_PATH = "/ABS/PATH/your-project/.codebrain/codebrain.db"
 CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventions"
+```
+
+### 中文 / 多语言约定模型配置
+
+如果团队主要写中文约定，但任务描述里混有英文技术术语，可以把模型切到多语言版本。
+
+JSON:
+
+```json
+{
+  "mcpServers": {
+    "codebase-brain": {
+      "command": "/ABS/PATH/codebase-brain/.venv/bin/codebrain",
+      "args": ["serve"],
+      "env": {
+        "CODEBRAIN_DB_PATH": "/ABS/PATH/your-project/.codebrain/codebrain.db",
+        "CODEBRAIN_DEFAULT_CONVENTIONS_PATH": "/ABS/PATH/your-project/.codebrain/conventions",
+        "CODEBRAIN_EMBEDDER_MODEL": "paraphrase-multilingual-MiniLM-L12-v2"
+      }
+    }
+  }
+}
+```
+
+Codex CLI TOML:
+
+```toml
+[mcp_servers.codebase-brain.env]
+CODEBRAIN_DB_PATH = "/ABS/PATH/your-project/.codebrain/codebrain.db"
+CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventions"
+CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 ```
 
 ### 多客户端使用建议
@@ -325,6 +358,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | `CODEBRAIN_OLLAMA_URL` | `http://localhost:11434` | 本机 Ollama embedding 服务地址；保持 localhost，除非团队明确批准内网服务。 |
 | `CODEBRAIN_DB_PATH` | `.codebrain/codebrain.db` | 建议配置成每个项目自己的绝对路径。 |
 | `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` | `.codebrain/conventions` | 建议配置成每个项目自己的绝对路径。 |
+| `CODEBRAIN_CONVENTION_QUALITY_KEYWORDS` | 空 | 逗号分隔的自定义低信号关键词；命中时 `index_convention_files` 返回 warning，不阻断入库。 |
 | `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED` | `false` | 稳定版建议保持 false。 |
 | `CODEBRAIN_VECTOR_STORE_BACKEND` | `sqlite` | 可选 `sqlite` 或 `milvus`；不显式设置时保持本地 SQLite。 |
 | `CODEBRAIN_CODEBASE_MEMORY_BINARY` | `codebase-memory-mcp` | 可选图谱 sidecar 二进制路径。 |

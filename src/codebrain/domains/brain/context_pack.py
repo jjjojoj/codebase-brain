@@ -2,7 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
+
+
+_TASK_CHECKLIST = {
+    r"\b(export|csv|report)\b": "ensure deterministic ordering (e.g. .order_by('id'))",
+    r"\bmanagement\s+command\b": "check requires_system_checks = [] for read-only commands",
+    r"\b(exception|error\s+handling)\b": "avoid broad Exception unless intentionally documented",
+    r"\b(api|fastapi)\b": "check response model, docstring, and version metadata",
+}
 
 
 def assemble_context_pack(
@@ -42,6 +51,7 @@ def assemble_context_pack(
         "similar_sessions": similar_sessions,
         "warnings": warnings,
         "suggested_next_steps": _suggested_next_steps(
+            task,
             status,
             warnings,
             critical_conventions=critical_conventions,
@@ -78,6 +88,7 @@ def _local_status(local: dict[str, Any]) -> str:
 
 
 def _suggested_next_steps(
+    task: str,
     status: dict[str, Any],
     warnings: list[str],
     *,
@@ -86,6 +97,7 @@ def _suggested_next_steps(
     similar_sessions: list[Any],
 ) -> list[str]:
     steps: list[str] = []
+    steps.extend(_task_checklist(task))
     if status.get("local") == "empty":
         steps.append("run brain_index_project to index your repository")
     if not any([critical_conventions, recent_changes, similar_sessions]):
@@ -97,3 +109,12 @@ def _suggested_next_steps(
     if any("convention" in warning for warning in warnings):
         steps.append("index .codebrain/conventions before editing")
     return steps
+
+
+def _task_checklist(task: str) -> list[str]:
+    lowered = task.lower()
+    return [
+        suggestion
+        for pattern, suggestion in _TASK_CHECKLIST.items()
+        if re.search(pattern, lowered)
+    ]
