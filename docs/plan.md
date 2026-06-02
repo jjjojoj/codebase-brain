@@ -23,8 +23,8 @@ all-capability prototype is preserved on the `dev` branch.
 
 - Git history vector indexing.
 - Semantic search over indexed Git history.
-- Making OpenAI/cloud embedding the default. The shipped default is local
-  `sentence-transformers`.
+- OpenAI/cloud embedding providers. The shipped stable line uses local
+  `sentence-transformers` or local Ollama only.
 - Legacy multi-server `packages/*` entry points.
 - Automatic file watchers.
 
@@ -33,5 +33,5 @@ all-capability prototype is preserved on the `dev` branch.
 - README documents one stable setup path.
 - MCP tool surface excludes `index_git_history` and `search_history`.
 - The default embedding provider is local `sentence-transformers`.
-- OpenAI embedding fails closed unless cloud embeddings are explicitly enabled.
+- OpenAI embedding is not reachable through stable configuration.
 - Tests cover the stable tool surface and default safety flags.

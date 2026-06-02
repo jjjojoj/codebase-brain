@@ -14,7 +14,6 @@ def test_settings_defaults() -> None:
     assert s.conventions_enabled is True
     assert s.session_memory_enabled is True
     assert s.history_enabled is True
-    assert s.allow_cloud_embeddings is False
     assert s.git_history_index_enabled is False
     assert s.default_conventions_path == ".codebrain/conventions"
     assert s.milvus_uri == ".codebrain/milvus_lite.db"
@@ -61,9 +60,9 @@ def test_settings_milvus_values() -> None:
     assert s.milvus_collection_prefix == "team_brain"
 
 
-def test_openai_embeddings_disabled_by_default() -> None:
-    """Cloud embeddings should fail closed unless explicitly enabled."""
-    settings = Settings(embedder_provider="openai", openai_api_key="dummy")
+def test_openai_embeddings_are_not_supported() -> None:
+    """Cloud embeddings should not be reachable through configuration."""
+    settings = Settings(embedder_provider="openai")
     container = Container(settings)
-    with pytest.raises(RuntimeError, match="OpenAI embeddings are disabled"):
+    with pytest.raises(ValueError, match="Supported providers"):
         _ = container.embedder

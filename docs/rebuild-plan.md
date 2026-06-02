@@ -19,7 +19,7 @@ The goal is not to make a smaller clone. The goal is to make a company-usable "c
 | Project | Use directly | Use as reference | Do not use |
 | --- | --- | --- | --- |
 | [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) | Binary sidecar or vendored fork, tool contracts, graph output | Installer, update flow, watcher, shared graph artifact, security docs | Rewriting the whole C graph engine in v1 |
-| [zilliztech/claude-context](https://github.com/zilliztech/claude-context) | MIT concepts and possibly package-level reuse | Async indexing, snapshot, file inclusion rules, sync-trigger, hybrid search UX | Blindly adding cloud OpenAI/Zilliz requirements to private-code default |
+| [zilliztech/claude-context](https://github.com/zilliztech/claude-context) | MIT concepts and possibly package-level reuse | Async indexing, snapshot, file inclusion rules, sync-trigger, hybrid search UX | Blindly adding cloud OpenAI/Zilliz requirements to private-code default; adopting cloud embedding |
 | [milvus-io/milvus](https://github.com/milvus-io/milvus) | Milvus Lite / Standalone / Cloud as vector backend | Hybrid search, multi-tenancy, RBAC, scaling model | Running full Milvus by default for individual users |
 | [zilliztech/attu](https://github.com/zilliztech/attu) | Optional external admin tool | Multi-cluster UI, data explorer, search playground, agent ops | Copying current Attu v3 code; it is proprietary from v2.6.0 onward |
 
@@ -91,7 +91,7 @@ Context Orchestrator
         |      local-first defaults
         |      secret filtering
         |      ignore rules
-        |      cloud opt-in
+        |      local-only embedding policy
         |
         +-- Status Layer
                snapshots, locks, progress, health
@@ -132,7 +132,7 @@ Keep raw lower-level tools internal at first. The agent should ask for "task con
   "status": {
     "graph": "ready|missing|stale|error",
     "vector": "ready|missing|stale|error",
-    "privacy": "local|cloud_opt_in"
+    "privacy": "local_only"
   },
   "must_follow": [
     {"source": "convention", "title": "...", "reason": "..."}
@@ -195,7 +195,8 @@ The output must be compact, cited, and ranked. Do not return unbounded snippets.
 ## Privacy And Safety Defaults
 
 - Default mode is local-only.
-- Cloud embeddings and remote Milvus/Zilliz are explicit opt-in.
+- Embeddings are local-only in the stable line.
+- Remote Milvus/Zilliz vector storage is explicit opt-in.
 - Raw Git diff indexing is disabled until secret filtering is implemented.
 - `.env`, keys, tokens, lockfiles, build outputs, vendor directories, and ignored files are excluded.
 - All indexing accepts explicit include/exclude rules.

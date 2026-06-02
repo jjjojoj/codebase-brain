@@ -19,10 +19,7 @@ class Settings(BaseSettings):
     # Embedder
     embedder_provider: str = "sentence-transformers"
     embedder_model: str = "all-MiniLM-L6-v2"
-    allow_cloud_embeddings: bool = False
-    openai_api_key: str | None = None
     ollama_url: str = "http://localhost:11434"
-    openai_embedding_model: str = "text-embedding-3-small"
 
     # Vector store
     vector_store_backend: str = "sqlite"

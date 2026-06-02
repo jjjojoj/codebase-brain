@@ -37,16 +37,10 @@ class Container:
         if provider == "ollama":
             from codebrain.infrastructure.embedder.ollama import OllamaEmbedder
             return OllamaEmbedder(self.settings)
-        if provider == "openai":
-            if not self.settings.allow_cloud_embeddings:
-                raise RuntimeError(
-                    "OpenAI embeddings are disabled in the stable build. "
-                    "Set CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=true only after "
-                    "your organization has approved sending indexed text to an external API."
-                )
-            from codebrain.infrastructure.embedder.openai import OpenAIEmbedder
-            return OpenAIEmbedder(self.settings)
-        raise ValueError(f"Unknown embedder provider: {provider}")
+        raise ValueError(
+            f"Unknown local embedder provider: {provider}. "
+            "Supported providers: sentence-transformers, ollama."
+        )
 
     def _build_vector_store(self) -> AbstractVectorStore:
         backend = self.settings.vector_store_backend

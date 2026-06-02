@@ -51,7 +51,7 @@ def build_dashboard_payload(settings: Settings, repo_path: str) -> dict[str, Any
         "environment": {
             "CODEBRAIN_VECTOR_STORE_BACKEND": settings.vector_store_backend,
             "CODEBRAIN_MILVUS_URI": settings.milvus_uri,
-            "CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS": str(settings.allow_cloud_embeddings).lower(),
+            "CODEBRAIN_EMBEDDER_PROVIDER": settings.embedder_provider,
             "CODEBRAIN_GIT_HISTORY_INDEX_ENABLED": str(
                 settings.git_history_index_enabled
             ).lower(),

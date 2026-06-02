@@ -21,7 +21,7 @@
 
 - Personality: practical, technical, local-first, enterprise-safe.
 - Trust signals:
-  - Clear local/cloud boundary.
+  - Clear local-only embedding boundary.
   - Explicit source attribution for borrowed ideas or code.
   - Small number of high-value MCP tools instead of many overlapping tools.
   - Reproducible install, health checks, and testable workflows.
@@ -37,12 +37,13 @@
   - Fuse code structure, semantic retrieval, team conventions, session memory, and Git history into one practical AI coding context layer.
   - Make one MCP entry useful across Cursor, Qoder, Codex, OpenCode, Claude Code, Hermes, and similar clients.
   - Let developers ask for task context and receive a compact, cited edit brief.
-  - Keep the safe path local-first while allowing Milvus Standalone/Zilliz Cloud for larger teams.
+  - Keep embeddings local-only while allowing explicitly configured Milvus Standalone/Zilliz Cloud for vector storage when a team approves it.
   - Build on mature open-source projects where practical instead of reimplementing every subsystem.
 - Non-goals:
   - Do not rewrite `codebase-memory-mcp`'s graph engine in the first version.
   - Do not build a full Attu replacement in the first version.
-  - Do not make cloud embedding or cloud vector storage mandatory.
+  - Do not support cloud embedding in the stable line.
+  - Do not make cloud vector storage mandatory.
   - Do not expose raw Git history semantic indexing until filtering and privacy controls are implemented.
 - Success signals:
   - A developer can install once and use one MCP server in multiple AI coding clients.
@@ -93,8 +94,8 @@
   - Codebase Brain should be the orchestration layer over graph, vector, team memory, and Git context.
 - Principle 2: Context packs, not raw search.
   - MCP clients should receive compact, cited, task-shaped briefs.
-- Principle 3: Local-first by default, cloud-capable by configuration.
-  - Private repositories should work without cloud keys.
+- Principle 3: Local embedding only.
+  - Private repositories should work without cloud keys or cloud embedding providers.
 - Principle 4: Borrow proven systems at boundaries.
   - Use `codebase-memory-mcp` as a graph sidecar before attempting to port its internals.
   - Use Milvus/Zilliz-compatible schemas for vector data.
@@ -138,7 +139,7 @@
   - Local-only mode: codebase-memory sidecar + SQLite/Milvus Lite.
   - Team mode: codebase-memory sidecar + Milvus Standalone/Zilliz Cloud.
   - Degraded mode: graph unavailable, vector/memory still usable with explicit warnings.
-  - Privacy mode: disables cloud embedding and raw Git semantic indexing.
+  - Privacy mode: enforces local-only embedding and disables raw Git semantic indexing.
 - Token/component ownership:
   - MCP contracts are owned by `src/codebrain/server.py` and domain tool modules.
   - Storage contracts are owned by core/infrastructure modules.
@@ -175,7 +176,7 @@
 - Empty:
   - Empty project state should show exact commands/tools to index.
 - Error:
-  - Errors must distinguish missing binary, missing database, bad path, cloud auth failure, and privacy-blocked operations.
+  - Errors must distinguish missing binary, missing database, bad path, unsupported provider, and privacy-blocked operations.
 - Success:
   - Index success should report files/chunks/nodes/edges where available.
 - Disabled:

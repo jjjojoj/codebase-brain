@@ -88,7 +88,11 @@ def test_brain_status_reports_graph_and_privacy(monkeypatch, container) -> None:
 
     assert result["profile"] == "composition-first"
     assert result["graph"]["status"] == "missing"
-    assert result["privacy"]["cloud_embeddings_allowed"] is False
+    assert result["privacy"]["embedding_policy"] == "local_only"
+    assert result["privacy"]["supported_embedding_providers"] == [
+        "sentence-transformers",
+        "ollama",
+    ]
     assert "brain_index_project" in result["recommended_tools"]
 
 

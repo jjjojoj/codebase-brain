@@ -9,7 +9,7 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 它现在采用“组合式 MCP 门面”：Codebase Brain 自己负责团队知识、任务记忆、Git 只读上下文和统一工具入口；结构化代码图谱优先复用 `codebase-memory-mcp` 这样的成熟 sidecar，而不是在 Python 里重写一套不成熟的图谱引擎。
 
-> **安全边界**：默认本地运行、本地 SQLite 存储、本地 embedding。OpenAI / 云端 embedding 默认关闭，Git 历史向量索引默认关闭。`codebase-memory-mcp` 是可选本地 sidecar；没有安装时，`brain_*` 工具会返回清晰的降级状态，不会导致 MCP 服务不可用。
+> **安全边界**：默认本地运行、本地 SQLite 存储、本地 embedding。稳定版不提供 OpenAI / 云端 embedding 入口，Git 历史向量索引默认关闭。`codebase-memory-mcp` 是可选本地 sidecar；没有安装时，`brain_*` 工具会返回清晰的降级状态，不会导致 MCP 服务不可用。
 
 ## 为什么需要它
 
@@ -35,14 +35,14 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 - Git 历史向量索引。
 - 已索引 Git 历史的语义搜索。
-- 把 OpenAI / 云端 embedding 设为默认。
+- OpenAI / 云端 embedding provider。
 - legacy `packages/*` 多 MCP Server 入口。
 - 自动 watch 常驻文件监听。
 - 自动改写各类 AI 客户端配置。
 - 内置重写 `codebase-memory-mcp` 的图谱引擎。
 - 把 Milvus 设为默认向量后端。
 
-这些能力不是永远不做，而是等安全过滤、文件过滤、真实客户端验证成熟后再回流。
+这些能力不是永远不做，而是等安全过滤、文件过滤、真实客户端验证成熟后再讨论是否进入实验分支；稳定版只采用本地 embedding。
 
 ## Quick Start
 
@@ -68,7 +68,7 @@ py -3.12 -m venv .venv
 
 `local` extra 会安装 `sentence-transformers`。第一次启动时模型可能需要下载；公司私有代码或敏感仓库建议保持这个本地方案。
 
-默认 embedding provider 是本地 `sentence-transformers`。只有同时设置 `CODEBRAIN_EMBEDDER_PROVIDER=openai` 和 `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=true`，才会启用 OpenAI embedding。
+稳定版只支持本地 embedding provider：默认 `sentence-transformers`，也可以显式设置 `CODEBRAIN_EMBEDDER_PROVIDER=ollama` 使用本机 Ollama 服务。不支持 `openai` provider。
 
 如果团队想接入已有的 Milvus Standalone 或 Zilliz Cloud，可以安装轻量客户端依赖：
 
@@ -234,7 +234,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 
 - Codebase Brain 本地数据库和 embedding 是否可用。
 - `codebase-memory-mcp` sidecar 是否可用。
-- 当前隐私开关是否允许云端 embedding 或 Git 历史向量索引。
+- 当前 embedding 策略和 Git 历史向量索引开关。
 
 ## 推荐工作流
 
@@ -254,7 +254,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 1. 先选一个真实业务仓库试点，不要一开始铺到所有项目。
 2. 把 `.codebrain/conventions/*.md` 提交到业务仓库。
 3. 把 `.codebrain/codebrain.db` 保留在每个人本机，不提交数据库。
-4. 先只启用本地 embedding，不启用云端 embedding。
+4. 保持本地 embedding；稳定版不接入云端 embedding provider。
 5. 先使用 Git 只读工具，不启用 Git 历史向量索引。
 6. 每周让团队删掉过期约定，避免知识库变成噪音。
 
@@ -313,11 +313,11 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `CODEBRAIN_EMBEDDER_PROVIDER` | `sentence-transformers` | 稳定版默认本地 provider。 |
+| `CODEBRAIN_EMBEDDER_PROVIDER` | `sentence-transformers` | 稳定版只支持本地 provider：`sentence-transformers` 或 `ollama`。 |
 | `CODEBRAIN_EMBEDDER_MODEL` | `all-MiniLM-L6-v2` | 启动快的小模型，适合 MVP。 |
+| `CODEBRAIN_OLLAMA_URL` | `http://localhost:11434` | 本机 Ollama embedding 服务地址；保持 localhost，除非团队明确批准内网服务。 |
 | `CODEBRAIN_DB_PATH` | `.codebrain/codebrain.db` | 建议配置成每个项目自己的绝对路径。 |
 | `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` | `.codebrain/conventions` | 建议配置成每个项目自己的绝对路径。 |
-| `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS` | `false` | 私有代码或团队项目建议保持 false。 |
 | `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED` | `false` | 稳定版建议保持 false。 |
 | `CODEBRAIN_VECTOR_STORE_BACKEND` | `sqlite` | 可选 `sqlite` 或 `milvus`；不显式设置时保持本地 SQLite。 |
 | `CODEBRAIN_CODEBASE_MEMORY_BINARY` | `codebase-memory-mcp` | 可选图谱 sidecar 二进制路径。 |
@@ -331,8 +331,8 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 
 - Codebase Brain 会读取你提供的约定文件和 Git 元数据，并写入本地 SQLite 数据库。
 - 默认数据库路径是 `.codebrain/codebrain.db`，团队仓库应该忽略这个数据库文件。
-- 默认 embedding provider 是本地 `sentence-transformers`。
-- OpenAI embedding 默认禁用；只有设置 `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=true` 才会启用。
+- 默认 embedding provider 是本地 `sentence-transformers`；可选 `ollama` 也必须指向本机或团队批准的内网服务。
+- OpenAI / 云端 embedding provider 不在稳定版工具链中。
 - Git 历史向量索引默认禁用；稳定版 MCP 工具面不注册 `index_git_history` 和 `search_history`。
 - 当前没有自动安装脚本，也不会自动改写 Cursor、Qoder、Codex、OpenCode 等客户端配置。
 - `codebase-memory-mcp` sidecar 由你本机安装和升级；Codebase Brain 只通过 CLI 调用它，不复制它的源码。
@@ -363,7 +363,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 | `brain_sync_status` 总是需要同步 | 检查是否有生成文件未被过滤；可传 `exclude_patterns` 增加忽略规则。 |
 | 设置 `CODEBRAIN_VECTOR_STORE_BACKEND=milvus` 后启动失败 | 远程 Milvus/Zilliz 先安装 `.venv/bin/python -m pip install -e ".[milvus]"`；本地 Milvus Lite 安装 `.venv/bin/python -m pip install -e ".[milvus-lite]"`，并确认 `CODEBRAIN_MILVUS_URI` 指向可写本地路径或可访问的远程 Milvus。 |
 | 第一次启动慢 | `sentence-transformers` 第一次加载或下载模型会比较慢。 |
-| 不想任何文本离开本机 | 保持 `CODEBRAIN_ALLOW_CLOUD_EMBEDDINGS=false`，不要配置 OpenAI provider。 |
+| 不想任何文本离开本机 | 使用默认 `sentence-transformers`；不要配置远程 Milvus/Zilliz 或远程 Ollama URL。 |
 
 ## 开发与测试
 

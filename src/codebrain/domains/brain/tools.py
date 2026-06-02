@@ -41,7 +41,8 @@ def brain_status(repo_path: str = ".") -> dict[str, Any]:
             },
         },
         "privacy": {
-            "cloud_embeddings_allowed": settings.allow_cloud_embeddings,
+            "embedding_policy": "local_only",
+            "supported_embedding_providers": ["sentence-transformers", "ollama"],
             "git_history_vector_index_enabled": settings.git_history_index_enabled,
         },
         "recommended_tools": [
