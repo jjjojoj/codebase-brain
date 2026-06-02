@@ -35,14 +35,17 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 - Git 历史向量索引。
 - 已索引 Git 历史的语义搜索。
-- OpenAI / 云端 embedding provider。
 - legacy `packages/*` 多 MCP Server 入口。
 - 自动 watch 常驻文件监听。
 - 自动改写各类 AI 客户端配置。
 - 内置重写 `codebase-memory-mcp` 的图谱引擎。
 - 把 Milvus 设为默认向量后端。
 
-这些能力不是永远不做，而是等安全过滤、文件过滤、真实客户端验证成熟后再讨论是否进入实验分支；稳定版只采用本地 embedding。
+这些能力不是永远不做，而是等安全过滤、文件过滤、真实客户端验证成熟后再讨论是否进入实验分支。
+
+明确不做：
+
+- OpenAI / 云端 embedding provider。Codebase Brain 的 embedding 路线只采用本地 `sentence-transformers` 或本地/内网批准的 Ollama；这不是等待成熟的实验能力。
 
 ## Quick Start
 

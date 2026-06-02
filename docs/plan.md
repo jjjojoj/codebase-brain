@@ -23,15 +23,18 @@ all-capability prototype is preserved on the `dev` branch.
 
 - Git history vector indexing.
 - Semantic search over indexed Git history.
-- OpenAI/cloud embedding providers. The shipped stable line uses local
-  `sentence-transformers` or local Ollama only.
 - Legacy multi-server `packages/*` entry points.
 - Automatic file watchers.
+
+## Product Policy Exclusions
+
+- OpenAI/cloud embedding providers. Codebase Brain uses local
+  `sentence-transformers` or local/approved-intranet Ollama only.
 
 ## Acceptance Criteria
 
 - README documents one stable setup path.
 - MCP tool surface excludes `index_git_history` and `search_history`.
 - The default embedding provider is local `sentence-transformers`.
-- OpenAI embedding is not reachable through stable configuration.
+- OpenAI embedding is not reachable through configuration.
 - Tests cover the stable tool surface and default safety flags.

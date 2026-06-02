@@ -195,7 +195,7 @@ The output must be compact, cited, and ranked. Do not return unbounded snippets.
 ## Privacy And Safety Defaults
 
 - Default mode is local-only.
-- Embeddings are local-only in the stable line.
+- Embeddings are local-only by product policy.
 - Remote Milvus/Zilliz vector storage is explicit opt-in.
 - Raw Git diff indexing is disabled until secret filtering is implemented.
 - `.env`, keys, tokens, lockfiles, build outputs, vendor directories, and ignored files are excluded.

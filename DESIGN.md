@@ -42,7 +42,7 @@
 - Non-goals:
   - Do not rewrite `codebase-memory-mcp`'s graph engine in the first version.
   - Do not build a full Attu replacement in the first version.
-  - Do not support cloud embedding in the stable line.
+  - Do not support cloud embedding providers in Codebase Brain.
   - Do not make cloud vector storage mandatory.
   - Do not expose raw Git history semantic indexing until filtering and privacy controls are implemented.
 - Success signals:
