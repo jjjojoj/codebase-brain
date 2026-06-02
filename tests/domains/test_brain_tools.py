@@ -245,3 +245,42 @@ def test_brain_explain_symbol_combines_graph_and_conventions(monkeypatch, contai
     assert result["graph"]["search"]["data"]["results"][0]["name"] == "OrderHandler"
     assert result["graph"]["call_trace"]["data"]["depth"] == 3
     assert result["conventions"][0]["title"] == "Handlers"
+
+
+def test_brain_context_for_task_assembles_local_and_graph_context(
+    monkeypatch,
+    container,
+) -> None:
+    monkeypatch.setattr(
+        brain_tools.local_context,
+        "gather_local_context",
+        lambda **kwargs: {
+            "status": {"conventions": "ready", "history": "ready", "memory": "ready"},
+            "critical_conventions": [{"title": "Auth boundaries"}],
+            "recent_changes": [{"file_path": "src/auth/tokens.py"}],
+            "similar_sessions": [{"task": "Auth refactor"}],
+            "warnings": [],
+        },
+    )
+    monkeypatch.setattr(
+        brain_tools.graph_context,
+        "gather_graph_context",
+        lambda **kwargs: {
+            "status": "missing",
+            "related_symbols": [],
+            "warnings": ["graph sidecar not available"],
+        },
+    )
+
+    result = brain_tools.brain_context_for_task(
+        "重构 auth 模块的 token 刷新逻辑",
+        files=["src/auth/tokens.py"],
+        symbols=["TokenService"],
+        top_k=3,
+    )
+
+    assert result["task"] == "重构 auth 模块的 token 刷新逻辑"
+    assert result["status"]["graph"] == "missing"
+    assert result["critical_conventions"][0]["title"] == "Auth boundaries"
+    assert result["related_symbols"] == []
+    assert "graph sidecar not available" in result["warnings"]

@@ -268,9 +268,11 @@ Tests:
 
 ### Phase 4: Context Pack Orchestrator
 
+Status: initial `brain_context_for_task` implemented with local context, optional graph context, degraded warnings, and contract tests. `brain_before_edit`, token-budget tuning, and golden fixtures remain open.
+
 Deliverables:
 
-- `brain_context_for_task`
+- `brain_context_for_task`. Initial version done.
 - `brain_before_edit`
 - Context ranking and output budget.
 - Merge graph, semantic, convention, memory, and Git signals.

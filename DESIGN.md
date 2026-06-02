@@ -105,22 +105,6 @@
   - Milvus Lite increases dependency weight, but gives us a real vector path for team knowledge and hybrid retrieval.
   - A unified MCP tool layer hides complexity from users, but requires careful status/error reporting.
 
-## Visual language
-
-- Color:
-  - Future UI should use a quiet developer-tool palette with clear status colors.
-  - Avoid a decorative marketing look; this is an operational tool.
-- Typography:
-  - Dense, readable technical UI. Monospace only for paths, commands, and IDs.
-- Spacing/layout rhythm:
-  - Compact dashboards, table-first where data is inspectable.
-- Shape/radius/elevation:
-  - Minimal cards, low radius, restrained elevation.
-- Motion:
-  - Only for indexing progress and status transitions.
-- Imagery/iconography:
-  - Use concrete diagrams and status icons. Avoid decorative illustrations.
-
 ## Components
 
 - Existing components to reuse:
@@ -128,7 +112,10 @@
   - Current convention/session/Git read-only domain modules where behavior is still valid.
   - Current test harness for stable MCP surface checks.
 - New/changed components:
-  - `brain` orchestration domain for task-level context packs.
+  - `domains/brain/local_context.py`: gathers conventions, session memory, and Git read-only signals without sidecar dependencies.
+  - `domains/brain/graph_context.py`: gathers code graph and call-path signals through the optional `codebase-memory-mcp` sidecar.
+  - `domains/brain/context_pack.py`: ranks, merges, and formats local plus graph signals into a compact Context Pack.
+  - `domains/brain/tools.py`: MCP wrappers only; parameter validation and calls into the context modules.
   - `adapters/codebase_memory.py` sidecar adapter.
   - `domains/brain/indexing.py` file filtering and sync snapshots.
   - `domains/brain/jobs.py` in-process async indexing job registry.
@@ -138,45 +125,68 @@
 - Variants and states:
   - Local-only mode: codebase-memory sidecar + SQLite/Milvus Lite.
   - Team mode: codebase-memory sidecar + Milvus Standalone/Zilliz Cloud.
-  - Degraded mode: graph unavailable, vector/memory still usable with explicit warnings.
+  - Offline mode: local embeddings, SQLite, conventions, memory, and Git read-only tools remain usable after dependencies and models are installed.
+  - Degraded mode: graph sidecar unavailable returns empty graph fields plus explicit warnings; conventions, memory, and Git read-only signals still return when available.
   - Privacy mode: enforces local-only embedding and disables raw Git semantic indexing.
 - Token/component ownership:
   - MCP contracts are owned by `src/codebrain/server.py` and domain tool modules.
   - Storage contracts are owned by core/infrastructure modules.
   - UI tokens are deferred until dashboard work starts.
 
-## Accessibility
+## Context Pack Contract
 
-- Target standard:
-  - Future UI should target WCAG 2.1 AA.
-- Keyboard/focus behavior:
-  - Dashboard workflows should be keyboard navigable.
-- Contrast/readability:
-  - Use high contrast for logs, status badges, and error states.
-- Screen-reader semantics:
-  - Tables, tabs, dialogs, and status messages must be semantic.
-- Reduced motion and sensory considerations:
-  - Indexing progress must not rely on motion alone.
+- `brain_context_for_task` is the core orchestration tool.
+- Input:
+  - `task: str` required, natural-language task description.
+  - `files: list[str] | None`, relevant file paths when known.
+  - `symbols: list[str] | None`, relevant symbols when known.
+  - `repo_path: str = "."`, repository root for Git and graph lookups.
+  - `top_k: int = 5`, bounded result count per source.
+- Output:
+  - `task`: original task string.
+  - `status`: per-source status for `local`, `graph`, `history`, and `memory`.
+  - `critical_conventions`: top conventions ranked by relevance, max 3.
+  - `related_symbols`: graph symbols and call-path hints, empty when sidecar is missing.
+  - `recent_changes`: recent Git read-only signals for supplied files, max 5.
+  - `similar_sessions`: recalled session memory, max 3.
+  - `warnings`: degraded-mode and disabled-feature warnings.
+  - `suggested_next_steps`: compact checks or tool calls useful before editing.
+- Ranking order:
+  1. critical conventions,
+  2. directly supplied files and symbols,
+  3. graph symbols and call paths,
+  4. recent Git read-only changes,
+  5. similar past sessions.
+- Degraded modes:
+  - Sidecar unavailable: `related_symbols=[]`, `status.graph="missing"`, warning explains that local context is still usable.
+  - No conventions indexed: `critical_conventions=[]`, warning suggests indexing `.codebrain/conventions`.
+  - No session memory: `similar_sessions=[]`, no hard failure.
+  - Git history semantic search disabled: semantic history is omitted; Git read-only signals can still be returned.
+  - All sources empty: return a valid empty Context Pack with warnings, not an unhandled exception.
 
-## Responsive behavior
+## Feature Flags
 
-- Supported breakpoints/devices:
-  - Desktop-first for dashboard and local developer workflows.
-  - Mobile is read-only/secondary if added.
-- Layout adaptations:
-  - Sidebar plus main detail panes on desktop.
-  - Single-column stacked layout for narrow screens.
-- Touch/hover differences:
-  - Do not hide critical actions behind hover-only UI.
+| Capability | Flag | Default | Tool-surface behavior |
+| --- | --- | --- | --- |
+| Git history semantic indexing/search | `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED` | `false` | Register `index_git_history` and `search_history` only when true. |
+| Vector store backend | `CODEBRAIN_VECTOR_STORE_BACKEND` | `sqlite` | `sqlite` is the stable default; `milvus` is explicit opt-in. |
+| Embedding provider | `CODEBRAIN_EMBEDDER_PROVIDER` | `sentence-transformers` | Only `sentence-transformers` and `ollama` are supported; cloud providers are out of scope. |
+| Code graph sidecar | `CODEBRAIN_CODEBASE_MEMORY_BINARY` | `codebase-memory-mcp` | Missing binary degrades graph fields; local context remains usable. |
 
-## Interaction states
+## Dashboard UI
+
+- Dashboard UI design is deferred to v2.
+- The current local dashboard should stay desktop-first, high-contrast, and keyboard-navigable where practical; do not add a dashboard framework until MCP/CLI orchestration is working.
+
+## Interaction States
 
 - Loading:
   - Indexing status should show phase, target path, elapsed time, and safe next actions.
 - Empty:
   - Empty project state should show exact commands/tools to index.
 - Error:
-  - Errors must distinguish missing binary, missing database, bad path, unsupported provider, and privacy-blocked operations.
+  - Target error taxonomy should distinguish missing binary, missing database, bad path, unsupported provider, and privacy-blocked operations.
+  - Code changes that claim this taxonomy must add typed mapping and tests.
 - Success:
   - Index success should report files/chunks/nodes/edges where available.
 - Disabled:
@@ -217,6 +227,7 @@
 
 ## Open questions
 
+- [ ] Decide final ranking weights and output budget for `brain_context_for_task` after the v1 Context Pack tests land.
 - [ ] Decide whether v1 keeps Python orchestration only, or introduces a Node sidecar to reuse `@zilliz/claude-context-core`.
 - [ ] Decide whether Codebase Brain vendors/forks `codebase-memory-mcp`, downloads it, or requires user installation.
 - [ ] Decide the first supported company workflow: Cursor/Qoder first, or Codex/OpenCode first.

@@ -12,8 +12,37 @@ from typing import Any
 from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
 from codebrain.config import Settings
 from codebrain.core.di import get_container
-from codebrain.domains.brain import indexing, jobs
+from codebrain.domains.brain import context_pack, graph_context, indexing, jobs, local_context
 from codebrain.domains.conventions import tools as convention_tools
+
+
+def brain_context_for_task(
+    task: str,
+    repo_path: str = ".",
+    files: list[str] | None = None,
+    symbols: list[str] | None = None,
+    top_k: int = 5,
+) -> dict[str, Any]:
+    """Return a compact Context Pack for a natural-language coding task."""
+    task = _require_text(task, "task")
+    top_k = _bounded_int(top_k, "top_k", minimum=1, maximum=20)
+    resolved_repo = _resolve_repo_path(repo_path)
+    files = _clean_text_list(files)
+    symbols = _clean_text_list(symbols)
+    local = local_context.gather_local_context(
+        task=task,
+        files=files,
+        repo_path=resolved_repo,
+        top_k=top_k,
+    )
+    graph = graph_context.gather_graph_context(
+        task=task,
+        symbols=symbols,
+        repo_path=resolved_repo,
+        top_k=top_k,
+        settings=get_container().settings,
+    )
+    return context_pack.assemble_context_pack(task=task, local=local, graph=graph)
 
 
 def brain_status(repo_path: str = ".") -> dict[str, Any]:
@@ -314,6 +343,21 @@ def _bounded_int(value: int, name: str, minimum: int, maximum: int) -> int:
     if value < minimum or value > maximum:
         raise ValueError(f"{name} must be between {minimum} and {maximum}")
     return value
+
+
+def _clean_text_list(values: list[str] | None) -> list[str]:
+    if not values:
+        return []
+    if not isinstance(values, list):
+        raise TypeError("value must be a list of strings")
+    cleaned: list[str] = []
+    for value in values:
+        if not isinstance(value, str):
+            raise TypeError("value must be a list of strings")
+        stripped = value.strip()
+        if stripped:
+            cleaned.append(stripped)
+    return cleaned
 
 
 def _is_ok(result: dict[str, Any] | None) -> bool:

@@ -1,0 +1,50 @@
+"""Behavior tests for Context Pack assembly."""
+
+from __future__ import annotations
+
+from codebrain.domains.brain.context_pack import assemble_context_pack
+
+
+def test_context_pack_keeps_local_context_when_graph_is_unavailable() -> None:
+    local_context = {
+        "status": {
+            "conventions": "ready",
+            "history": "ready",
+            "memory": "ready",
+        },
+        "critical_conventions": [
+            {
+                "title": "Auth boundaries",
+                "content": "Keep token refresh logic inside auth.",
+                "similarity": 0.92,
+            }
+        ],
+        "recent_changes": [
+            {
+                "file_path": "src/auth/tokens.py",
+                "commit_hash": "abc123",
+                "message": "Tighten refresh validation",
+            }
+        ],
+        "similar_sessions": [
+            {
+                "task": "Refactor auth login flow",
+                "decisions": "Kept session renewal in auth.",
+            }
+        ],
+        "warnings": [],
+    }
+
+    pack = assemble_context_pack(
+        task="重构 auth 模块的 token 刷新逻辑",
+        local=local_context,
+        graph=None,
+    )
+
+    assert pack["task"] == "重构 auth 模块的 token 刷新逻辑"
+    assert pack["status"]["graph"] == "missing"
+    assert pack["critical_conventions"] == local_context["critical_conventions"]
+    assert pack["recent_changes"] == local_context["recent_changes"]
+    assert pack["similar_sessions"] == local_context["similar_sessions"]
+    assert pack["related_symbols"] == []
+    assert "graph sidecar not available" in pack["warnings"]

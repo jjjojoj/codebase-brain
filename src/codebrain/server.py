@@ -53,9 +53,10 @@ def health() -> dict[str, Any]:
     return status
 
 
-# --- Codebase Brain task-shaped tools (6) ---
+# --- Codebase Brain task-shaped tools (7) ---
 from codebrain.domains.brain import tools as brain_tools
 
+mcp.add_tool(brain_tools.brain_context_for_task)
 mcp.add_tool(brain_tools.brain_status)
 mcp.add_tool(brain_tools.brain_sync_status)
 mcp.add_tool(brain_tools.brain_sync_project)
@@ -90,6 +91,10 @@ from codebrain.domains.history import tools as hist_tools
 mcp.add_tool(hist_tools.get_blame)
 mcp.add_tool(hist_tools.get_co_changed_files)
 mcp.add_tool(hist_tools.get_recent_changes)
+
+if container.settings.git_history_index_enabled:
+    mcp.add_tool(hist_tools.index_git_history)
+    mcp.add_tool(hist_tools.search_history)
 
 
 def main() -> None:

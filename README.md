@@ -21,20 +21,19 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 ## 当前稳定范围
 
-当前版本优先交付 20 个 MCP 工具：
+当前版本默认交付 21 个 MCP 工具：
 
 | 分组 | 工具 |
 | --- | --- |
 | 状态 | `health` |
-| 组合式入口 | `brain_status`, `brain_sync_status`, `brain_sync_project`, `brain_index_job_status`, `brain_index_project`, `brain_explain_symbol` |
+| 组合式入口 | `brain_context_for_task`, `brain_status`, `brain_sync_status`, `brain_sync_project`, `brain_index_job_status`, `brain_index_project`, `brain_explain_symbol` |
 | 项目约定 | `add_convention`, `search_conventions`, `list_conventions`, `index_convention_files` |
 | 会话记忆 | `start_session`, `record_decision`, `record_problem`, `record_file_change`, `end_session`, `recall_context` |
 | Git 只读上下文 | `get_blame`, `get_recent_changes`, `get_co_changed_files` |
 
-暂不开放这些实验能力：
+默认关闭这些实验能力：
 
-- Git 历史向量索引。
-- 已索引 Git 历史的语义搜索。
+- Git 历史向量索引和已索引 Git 历史的语义搜索；只有设置 `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED=true` 才会注册 `index_git_history` / `search_history`。
 - legacy `packages/*` 多 MCP Server 入口。
 - 自动 watch 常驻文件监听。
 - 自动改写各类 AI 客户端配置。
@@ -258,7 +257,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 2. 把 `.codebrain/conventions/*.md` 提交到业务仓库。
 3. 把 `.codebrain/codebrain.db` 保留在每个人本机，不提交数据库。
 4. 保持本地 embedding；稳定版不接入云端 embedding provider。
-5. 先使用 Git 只读工具，不启用 Git 历史向量索引。
+5. 先使用 `brain_context_for_task` 和 Git 只读工具，不启用 Git 历史向量索引。
 6. 每周让团队删掉过期约定，避免知识库变成噪音。
 
 记忆内容要短、事实化。不要写入密钥、凭据、客户数据、生产日志或其它敏感信息。
@@ -275,6 +274,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 
 | 工具 | 说明 |
 | --- | --- |
+| `brain_context_for_task` | 根据自然语言任务返回 Context Pack：约定、会话记忆、Git 只读信号、可选图谱结果和降级 warnings。 |
 | `brain_status` | 面向 AI 客户端的一站式能力检查：本地知识层、sidecar 图谱、隐私开关。 |
 | `brain_sync_status` | 根据文件过滤快照判断项目是否需要重新索引。 |
 | `brain_sync_project` | sync-trigger 式索引入口；默认异步排队，也可以设置 `async_mode=false` 同步执行。 |
@@ -336,7 +336,7 @@ CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "/ABS/PATH/your-project/.codebrain/conventi
 - 默认数据库路径是 `.codebrain/codebrain.db`，团队仓库应该忽略这个数据库文件。
 - 默认 embedding provider 是本地 `sentence-transformers`；可选 `ollama` 也必须指向本机或团队批准的内网服务。
 - OpenAI / 云端 embedding provider 不在稳定版工具链中。
-- Git 历史向量索引默认禁用；稳定版 MCP 工具面不注册 `index_git_history` 和 `search_history`。
+- Git 历史向量索引默认禁用；只有设置 `CODEBRAIN_GIT_HISTORY_INDEX_ENABLED=true` 才注册 `index_git_history` 和 `search_history`。
 - 当前没有自动安装脚本，也不会自动改写 Cursor、Qoder、Codex、OpenCode 等客户端配置。
 - `codebase-memory-mcp` sidecar 由你本机安装和升级；Codebase Brain 只通过 CLI 调用它，不复制它的源码。
 - `brain_sync_project` 的异步 job 是 MCP 进程内状态；MCP 服务重启后历史 job 列表不会保留，但 `.codebrain/index-state.json` 会保留最后一次索引快照。
