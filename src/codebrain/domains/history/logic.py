@@ -34,8 +34,13 @@ def index_git_history(
     repo: Repository,
     repo_path: str = ".",
     max_commits: int = 500,
+    max_entries: int = 500,
 ) -> dict[str, int]:
-    """Index recent git commit/file history into the git_history collection."""
+    """Index recent git commit/file history into the git_history collection.
+
+    max_entries caps the total indexed file-change entries, preventing runaway
+    loops on projects with massive initial commits (e.g. Django's 7000+ files).
+    """
     rp = Path(repo_path).expanduser().resolve()
     commits = parse_git_log(rp, max_commits)
     if not commits:
@@ -62,6 +67,10 @@ def index_git_history(
             )
 
             indexed_entries += 1
+            if indexed_entries >= max_entries:
+                break
+        if indexed_entries >= max_entries:
+            break
 
     return {"indexed_commits": len(commits), "indexed_entries": indexed_entries}
 

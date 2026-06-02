@@ -54,11 +54,11 @@ def get_recent_changes(
 
 
 def index_git_history(
-    repo_path: str = ".", max_commits: int = 500
+    repo_path: str = ".", max_commits: int = 500, max_entries: int = 500
 ) -> dict[str, int]:
     """Index recent git commit/file history into the git_history collection."""
     _require_git_history_index_enabled()
-    return logic.index_git_history(_repo(), repo_path, max_commits)
+    return logic.index_git_history(_repo(), repo_path, max_commits, max_entries)
 
 
 def _require_git_history_index_enabled() -> None:
