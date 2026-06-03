@@ -160,8 +160,8 @@ class CodebaseMemoryAdapter:
                 error=str(exc),
             )
 
-        stdout = completed.stdout.strip()
-        stderr = completed.stderr.strip()
+        stdout = completed.stdout.strip() if completed.stdout else ""
+        stderr = completed.stderr.strip() if completed.stderr else ""
         data = _parse_sidecar_output(stdout)
         if completed.returncode != 0:
             return SidecarResult(
@@ -194,6 +194,8 @@ def _run_subprocess(
         check=False,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout_sec,
     )
 
