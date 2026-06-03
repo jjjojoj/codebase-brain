@@ -7,6 +7,7 @@ from typing import Any
 from codebrain.config import Settings
 from codebrain.core.di import get_container
 from codebrain.core.repository import Repository
+from codebrain.domains.brain import jobs as brain_jobs
 from codebrain.domains.history import git_indexer, logic
 
 
@@ -40,9 +41,31 @@ def get_co_changed_files(
     limit: int = 10,
     repo_path: str = ".",
     max_commits: int = 50,
-) -> list[dict[str, Any]]:
-    """Return files commonly changed with file_path."""
-    return git_indexer.get_co_changed(repo_path, file_path, limit, max_commits)
+    async_mode: bool = True,
+) -> dict[str, Any]:
+    """Return files commonly changed with file_path.
+
+    Defaults to async_mode=True to avoid Qoder tool-call timeouts
+    on large repos. When async, returns a job_id; poll with
+    brain_index_job_status(job_id) to retrieve results.
+    """
+    def _run() -> dict[str, Any]:
+        results = git_indexer.get_co_changed(repo_path, file_path, limit, max_commits)
+        return {"ok": True, "results": results}
+
+    if async_mode:
+        job = brain_jobs.start_job(
+            f"co-changed {file_path} (max_commits={max_commits})", _run
+        )
+        return {
+            "ok": True,
+            "status": "queued",
+            "job": job,
+            "hint": "Poll brain_index_job_status(job_id) for results",
+        }
+
+    result = _run()
+    return result
 
 
 def get_recent_changes(
@@ -55,11 +78,37 @@ def get_recent_changes(
 
 
 def index_git_history(
-    repo_path: str = ".", max_commits: int = 500, max_entries: int = 500
-) -> dict[str, int]:
-    """Index recent git commit/file history into the git_history collection."""
+    repo_path: str = ".",
+    max_commits: int = 500,
+    max_entries: int = 500,
+    async_mode: bool = True,
+) -> dict[str, Any]:
+    """Index recent git commit/file history into the git_history collection.
+
+    Defaults to async_mode=True to avoid Qoder tool-call timeouts
+    caused by sentence-transformers cold-start. When async, returns
+    a job_id; poll with brain_index_job_status(job_id).
+    """
     _require_git_history_index_enabled()
-    return logic.index_git_history(_repo(), repo_path, max_commits, max_entries)
+
+    def _run() -> dict[str, Any]:
+        result = logic.index_git_history(_repo(), repo_path, max_commits, max_entries)
+        return {"ok": True, **result}
+
+    if async_mode:
+        job = brain_jobs.start_job(
+            f"git-index {repo_path} (commits={max_commits}, entries={max_entries})",
+            _run,
+        )
+        return {
+            "ok": True,
+            "status": "queued",
+            "job": job,
+            "hint": "Poll brain_index_job_status(job_id) for results",
+        }
+
+    result = _run()
+    return result
 
 
 def _require_git_history_index_enabled() -> None:
