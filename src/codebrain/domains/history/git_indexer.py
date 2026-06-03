@@ -113,7 +113,13 @@ def get_co_changed(
     repo_path: str | Path,
     file_path: str,
     limit: int = 10,
+    max_commits: int = 50,
 ) -> list[dict[str, Any]]:
+    """Return files commonly changed with file_path.
+
+    max_commits caps the number of recent commits scanned to prevent
+    timeout on files with long history (e.g. Django base.py has 169 commits).
+    """
     repo = _resolve_repo(repo_path)
     if limit < 1 or not _is_git_repo(repo) or not _has_commits(repo):
         return []
@@ -122,12 +128,13 @@ def get_co_changed(
     if not commit_result.ok or not commit_result.stdout.strip():
         return []
 
+    # Slice to max_commits to avoid exploding on files with deep history
+    commit_hashes = [h.strip() for h in commit_result.stdout.splitlines() if h.strip()]
+    commit_hashes = commit_hashes[:max_commits]
+
     counts: Counter[str] = Counter()
     last_changed: dict[str, str] = {}
-    for commit_hash in commit_result.stdout.splitlines():
-        commit_hash = commit_hash.strip()
-        if not commit_hash:
-            continue
+    for commit_hash in commit_hashes:
         files_result = _run_git(
             repo,
             ["show", "--format=%ad", "--date=iso-strict", "--name-only", "--no-renames", commit_hash],

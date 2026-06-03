@@ -39,9 +39,10 @@ def get_co_changed_files(
     file_path: str,
     limit: int = 10,
     repo_path: str = ".",
+    max_commits: int = 50,
 ) -> list[dict[str, Any]]:
     """Return files commonly changed with file_path."""
-    return git_indexer.get_co_changed(repo_path, file_path, limit)
+    return git_indexer.get_co_changed(repo_path, file_path, limit, max_commits)
 
 
 def get_recent_changes(
