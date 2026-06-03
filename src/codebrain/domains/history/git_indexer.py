@@ -117,27 +117,35 @@ def get_co_changed(
 ) -> list[dict[str, Any]]:
     """Return files commonly changed with file_path.
 
-    max_commits caps the number of recent commits scanned to prevent
-    timeout on files with long history (e.g. Django base.py has 169 commits).
+    Uses git log -n{max_commits} to limit initial query, then git show
+    (without path filter) per commit to discover co-changed files.
     """
     repo = _resolve_repo(repo_path)
     if limit < 1 or not _is_git_repo(repo) or not _has_commits(repo):
         return []
 
-    commit_result = _run_git(repo, ["log", "--format=%H", "--", file_path])
-    if not commit_result.ok or not commit_result.stdout.strip():
+    # Limit initial log to max_commits; each git show is fast for a single commit
+    log_result = _run_git(
+        repo, ["log", f"-n{max_commits}", "--format=%H", "--", file_path]
+    )
+    if not log_result.ok or not log_result.stdout.strip():
         return []
 
-    # Slice to max_commits to avoid exploding on files with deep history
-    commit_hashes = [h.strip() for h in commit_result.stdout.splitlines() if h.strip()]
-    commit_hashes = commit_hashes[:max_commits]
+    commit_hashes = [h.strip() for h in log_result.stdout.splitlines() if h.strip()]
 
     counts: Counter[str] = Counter()
     last_changed: dict[str, str] = {}
     for commit_hash in commit_hashes:
         files_result = _run_git(
             repo,
-            ["show", "--format=%ad", "--date=iso-strict", "--name-only", "--no-renames", commit_hash],
+            [
+                "show",
+                "--format=%ad",
+                "--date=iso-strict",
+                "--name-only",
+                "--no-renames",
+                commit_hash,  # no path filter → lists ALL files in commit
+            ],
         )
         if not files_result.ok:
             continue

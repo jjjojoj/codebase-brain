@@ -11,6 +11,12 @@ from codebrain.core.di import init_container
 settings = Settings()
 container = init_container(settings)
 
+# --- Eagerly warm embedder (avoids 30s cold-start timeout on first tool call) ---
+try:
+    _dim = container.embedder.dimension()
+except Exception:
+    _dim = 0
+
 # --- Create FastMCP ---
 try:
     from mcp.server.fastmcp import FastMCP
