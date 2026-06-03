@@ -117,41 +117,49 @@ def get_co_changed(
 ) -> list[dict[str, Any]]:
     """Return files commonly changed with file_path.
 
-    Uses git log -n{max_commits} to limit initial query, then git show
-    (without path filter) per commit to discover co-changed files.
+    Two-phase approach: git log for hashes+dates, then git diff-tree
+    (lighter than git show) per commit for co-changed files.
     """
     repo = _resolve_repo(repo_path)
     if limit < 1 or not _is_git_repo(repo) or not _has_commits(repo):
         return []
 
-    # Limit initial log to max_commits; each git show is fast for a single commit
+    # Phase 1: get hashes and dates in one pass
     log_result = _run_git(
-        repo, ["log", f"-n{max_commits}", "--format=%H", "--", file_path]
+        repo,
+        [
+            "log",
+            f"-n{max_commits}",
+            f"--format=%H{GIT_FIELD_SEPARATOR}%ad",
+            "--date=iso-strict",
+            "--",
+            file_path,
+        ],
     )
     if not log_result.ok or not log_result.stdout.strip():
         return []
 
-    commit_hashes = [h.strip() for h in log_result.stdout.splitlines() if h.strip()]
+    commits: list[tuple[str, str]] = []
+    for line in log_result.stdout.splitlines():
+        parts = line.split(GIT_FIELD_SEPARATOR, 1)
+        if len(parts) == 2:
+            commits.append((parts[0], parts[1]))
 
+    # Phase 2: for each commit, use diff-tree (no diff, just file names)
     counts: Counter[str] = Counter()
     last_changed: dict[str, str] = {}
-    for commit_hash in commit_hashes:
+    for commit_hash, date in commits:
         files_result = _run_git(
             repo,
-            [
-                "show",
-                "--format=%ad",
-                "--date=iso-strict",
-                "--name-only",
-                "--no-renames",
-                commit_hash,  # no path filter → lists ALL files in commit
-            ],
+            ["diff-tree", "--no-commit-id", "--name-only", "-r", commit_hash],
         )
         if not files_result.ok:
             continue
-        lines = [line.strip() for line in files_result.stdout.splitlines()]
-        date = next((line for line in lines if line), "")
-        changed_files = [line for line in lines[1:] if line]
+        changed_files = [
+            line.strip()
+            for line in files_result.stdout.splitlines()
+            if line.strip()
+        ]
         if file_path not in changed_files:
             continue
         for changed_file in changed_files:
@@ -168,6 +176,7 @@ def get_co_changed(
         }
         for changed_file, count in counts.most_common(limit)
     ]
+
 
 
 def get_recent_changes(
