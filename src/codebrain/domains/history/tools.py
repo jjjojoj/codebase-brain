@@ -41,31 +41,12 @@ def get_co_changed_files(
     limit: int = 10,
     repo_path: str = ".",
     max_commits: int = 50,
-    async_mode: bool = True,
-) -> dict[str, Any]:
+) -> list[dict[str, Any]]:
     """Return files commonly changed with file_path.
 
-    Defaults to async_mode=True to avoid Qoder tool-call timeouts
-    on large repos. When async, returns a job_id; poll with
-    brain_index_job_status(job_id) to retrieve results.
+    Uses git diff-tree (no diff, just file names) — fast even on large repos.
     """
-    def _run() -> dict[str, Any]:
-        results = git_indexer.get_co_changed(repo_path, file_path, limit, max_commits)
-        return {"ok": True, "results": results}
-
-    if async_mode:
-        job = brain_jobs.start_job(
-            f"co-changed {file_path} (max_commits={max_commits})", _run
-        )
-        return {
-            "ok": True,
-            "status": "queued",
-            "job": job,
-            "hint": "Poll brain_index_job_status(job_id) for results",
-        }
-
-    result = _run()
-    return result
+    return git_indexer.get_co_changed(repo_path, file_path, limit, max_commits)
 
 
 def get_recent_changes(
