@@ -86,7 +86,13 @@ def test_nonzero_exit_returns_error_text(monkeypatch) -> None:
     assert result.error == "failed"
 
 
-def test_project_name_from_path_matches_sidecar_sanitizing() -> None:
+def test_project_name_from_path_matches_sidecar_sanitizing(monkeypatch) -> None:
+    monkeypatch.setattr(
+        codebase_memory,
+        "_resolve_path",
+        lambda path: "/Users/me/Documents/New project 8/codebase-brain",
+    )
+
     project = project_name_from_path("/Users/me/Documents/New project 8/codebase-brain")
 
     assert project == "Users-me-Documents-New-project-8-codebase-brain"
