@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 
 import pytest
@@ -11,11 +12,15 @@ from codebrain.core.di import init_container
 from codebrain.domains.history import tools as history_tools
 
 
+def _tools(mcp) -> dict:
+    return {tool.name: tool for tool in asyncio.run(mcp.list_tools())}
+
+
 def test_stable_mcp_surface_excludes_git_history_vector_tools() -> None:
     """The stable MCP server should expose only safe git read-only tools."""
     from codebrain import server
 
-    tools = set(server.mcp._tool_manager._tools)
+    tools = set(_tools(server.mcp))
 
     assert "brain_context_for_task" in tools
     assert "brain_status" in tools
@@ -70,7 +75,7 @@ def test_all_stable_tool_descriptions_define_ai_decision_triggers() -> None:
         "start_session": "Automatically call once after Context Pack",
     }
 
-    tools = server.mcp._tool_manager._tools
+    tools = _tools(server.mcp)
     assert set(tools) == set(expected)
     for name, trigger in expected.items():
         assert trigger in tools[name].description
@@ -83,13 +88,17 @@ def test_git_history_vector_tools_register_only_when_flag_enabled(monkeypatch) -
     monkeypatch.setenv("CODEBRAIN_GIT_HISTORY_INDEX_ENABLED", "true")
     enabled_server = importlib.reload(server)
 
-    tools = set(enabled_server.mcp._tool_manager._tools)
+    tools = set(_tools(enabled_server.mcp))
 
     assert "index_git_history" in tools
     assert "search_history" in tools
 
     monkeypatch.delenv("CODEBRAIN_GIT_HISTORY_INDEX_ENABLED")
-    importlib.reload(server)
+    disabled_server = importlib.reload(server)
+    disabled_tools = set(_tools(disabled_server.mcp))
+
+    assert "index_git_history" not in disabled_tools
+    assert "search_history" not in disabled_tools
 
 
 def test_git_history_vector_indexing_fails_closed() -> None:

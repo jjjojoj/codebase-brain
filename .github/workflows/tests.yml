@@ -28,3 +28,23 @@ jobs:
         run: |
           [void][scriptblock]::Create([IO.File]::ReadAllText((Resolve-Path scripts/setup-windows.ps1)))
           [void][scriptblock]::Create([IO.File]::ReadAllText((Resolve-Path scripts/verify-qoder-windows.ps1)))
+
+  real-local-embedding:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: huggingface-paraphrase-minilm-l3-v2
+      - run: python -m pip install -e ".[local]"
+      - name: Run real CPU embedding
+        env:
+          CODEBRAIN_EMBEDDER_DEVICE: cpu
+          CODEBRAIN_EMBEDDER_MODEL: sentence-transformers/paraphrase-MiniLM-L3-v2
+        run: |
+          python -c "from codebrain.config import Settings; from codebrain.infrastructure.embedder.sentence_transformer import SentenceTransformerEmbedder; e=SentenceTransformerEmbedder(Settings()); v=e.embed('CI embedding smoke'); assert len(v) > 0 and e.model_loaded"

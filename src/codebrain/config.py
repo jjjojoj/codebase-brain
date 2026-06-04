@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,6 +22,7 @@ class Settings(BaseSettings):
     embedder_model: str = "all-MiniLM-L6-v2"
     embedder_device: str = "cpu"
     ollama_url: str = "http://localhost:11434"
+    ollama_batch_size: int = Field(default=32, ge=1, le=256)
 
     # Vector store
     vector_store_backend: str = "sqlite"

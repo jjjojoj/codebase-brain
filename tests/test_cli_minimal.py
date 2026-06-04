@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib
 
 from typer.testing import CliRunner
@@ -50,4 +51,5 @@ def test_server_module_initialization_does_not_load_sentence_transformer_model(
 
     loaded_server = importlib.reload(server)
 
-    assert "health" in loaded_server.mcp._tool_manager._tools
+    tools = {tool.name for tool in asyncio.run(loaded_server.mcp.list_tools())}
+    assert "health" in tools

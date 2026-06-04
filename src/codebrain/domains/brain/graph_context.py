@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass, field
 from threading import Lock
 import time
 from typing import Any
@@ -42,7 +43,13 @@ _TASK_TERM_MAPPINGS = {
 
 _GRAPH_LOCK_WAIT_SECONDS = 30
 _GRAPH_STAGE_BUDGET_SECONDS = 45
-_repo_locks: dict[str, Lock] = {}
+@dataclass
+class _RepoLockEntry:
+    lock: Lock = field(default_factory=Lock)
+    users: int = 0
+
+
+_repo_locks: dict[str, _RepoLockEntry] = {}
 _repo_locks_guard = Lock()
 
 
@@ -70,11 +77,12 @@ def gather_graph_context(
             "warnings": ["graph sidecar not available"],
         }
 
-    lock = _repo_lock(repo_path)
+    lock_key, lock = _claim_repo_lock(repo_path)
     wait_started = time.perf_counter()
     acquired = lock.acquire(timeout=_GRAPH_LOCK_WAIT_SECONDS)
     lock_wait_seconds = round(time.perf_counter() - wait_started, 3)
     if not acquired:
+        _release_repo_lock(lock_key)
         return {
             "status": "busy",
             "related_symbols": [],
@@ -96,6 +104,7 @@ def gather_graph_context(
         )
     finally:
         lock.release()
+        _release_repo_lock(lock_key)
 
 
 def _gather_locked(
@@ -148,10 +157,22 @@ def _gather_locked(
     }
 
 
-def _repo_lock(repo_path: str) -> Lock:
+def _claim_repo_lock(repo_path: str) -> tuple[str, Lock]:
     key = str(repo_path).lower()
     with _repo_locks_guard:
-        return _repo_locks.setdefault(key, Lock())
+        entry = _repo_locks.setdefault(key, _RepoLockEntry())
+        entry.users += 1
+        return key, entry.lock
+
+
+def _release_repo_lock(key: str) -> None:
+    with _repo_locks_guard:
+        entry = _repo_locks.get(key)
+        if entry is None:
+            return
+        entry.users -= 1
+        if entry.users == 0:
+            _repo_locks.pop(key, None)
 
 
 def _graph_queries(task: str, symbols: list[str] | None) -> list[str]:

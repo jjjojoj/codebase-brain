@@ -11,6 +11,7 @@ def test_settings_defaults(monkeypatch) -> None:
     for name in (
         "CODEBRAIN_EMBEDDER_PROVIDER",
         "CODEBRAIN_EMBEDDER_DEVICE",
+        "CODEBRAIN_OLLAMA_BATCH_SIZE",
         "CODEBRAIN_CODEBASE_MEMORY_SEARCH_TIMEOUT_SEC",
         "CODEBRAIN_VECTOR_STORE_BACKEND",
         "CODEBRAIN_CONVENTIONS_ENABLED",
@@ -26,6 +27,7 @@ def test_settings_defaults(monkeypatch) -> None:
     s = Settings(_env_file=None)
     assert s.embedder_provider == "sentence-transformers"
     assert s.embedder_device == "cpu"
+    assert s.ollama_batch_size == 32
     assert s.codebase_memory_search_timeout_sec == 15
     assert s.vector_store_backend == "sqlite"
     assert s.conventions_enabled is True
@@ -83,3 +85,9 @@ def test_openai_embeddings_are_not_supported() -> None:
     container = Container(settings)
     with pytest.raises(ValueError, match="Supported providers"):
         _ = container.embedder
+
+
+@pytest.mark.parametrize("batch_size", [0, 257])
+def test_ollama_batch_size_is_bounded(batch_size: int) -> None:
+    with pytest.raises(ValueError):
+        Settings(ollama_batch_size=batch_size)

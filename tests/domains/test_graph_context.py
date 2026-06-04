@@ -205,6 +205,39 @@ def test_gather_graph_context_serializes_same_repository_queries() -> None:
     assert adapter.max_active == 1
     assert all(result["status"] == "ready" for result in results)
     assert any(result["timings"]["lock_wait_seconds"] > 0 for result in results)
+    assert graph_context._repo_locks == {}
+
+
+def test_repository_locks_are_released_after_distinct_queries() -> None:
+    adapter = RecordingAdapter()
+
+    for index in range(25):
+        gather_graph_context(
+            task="auth",
+            symbols=["auth"],
+            repo_path=f"/repo/{index}",
+            adapter=adapter,
+        )
+
+    assert graph_context._repo_locks == {}
+
+
+def test_repository_lock_is_released_after_wait_timeout(monkeypatch) -> None:
+    key, lock = graph_context._claim_repo_lock("/busy/repo")
+    lock.acquire()
+    monkeypatch.setattr(graph_context, "_GRAPH_LOCK_WAIT_SECONDS", 0)
+
+    result = gather_graph_context(
+        task="auth",
+        symbols=["auth"],
+        repo_path="/busy/repo",
+        adapter=RecordingAdapter(),
+    )
+
+    lock.release()
+    graph_context._release_repo_lock(key)
+    assert result["status"] == "busy"
+    assert graph_context._repo_locks == {}
 
 
 def test_gather_graph_context_stops_after_stage_budget(monkeypatch) -> None:

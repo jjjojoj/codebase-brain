@@ -6,10 +6,18 @@ import argparse
 import json
 import time
 
-from codebrain.config import Settings
-from codebrain.core.di import init_container
-from codebrain.domains.brain.tools import brain_context_for_task, brain_index_job_status
-from codebrain.domains.history.tools import get_co_changed_files
+try:
+    from codebrain.config import Settings
+    from codebrain.core.di import init_container
+    from codebrain.domains.brain.tools import brain_context_for_task, brain_index_job_status
+    from codebrain.domains.history.tools import get_co_changed_files
+except ModuleNotFoundError as exc:
+    if exc.name == "codebrain":
+        raise SystemExit(
+            "Codebrain is not installed in this Python environment. "
+            "Run: python -m pip install -e '.[local]'"
+        ) from exc
+    raise
 
 
 def main() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path, PureWindowsPath
+import re
 
 from codebrain.domains.brain.local_context import select_context_files
 
@@ -20,6 +21,10 @@ def test_setup_windows_detects_codebrain_and_sidecar_processes() -> None:
         Path(__file__).parents[1] / "scripts" / "setup-windows.ps1"
     ).read_text(encoding="utf-8")
 
-    assert 'Get-Process -Name "codebrain", "codebase-memory-mcp"' in script
+    assert re.search(
+        r"Get-Process\s+-Name\s+[^\r\n]*codebrain[^\r\n]*codebase-memory-mcp",
+        script,
+        flags=re.IGNORECASE,
+    )
     assert "BEGIN IMMEDIATE" in script
     assert "Codebrain database is locked" in script

@@ -62,8 +62,9 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "`n== Tool surface =="
 $toolCheck = @'
+import asyncio
 from codebrain.server import mcp
-tools = sorted(mcp._tool_manager._tools)
+tools = sorted(tool.name for tool in asyncio.run(mcp.list_tools()))
 print(f"tool_count={len(tools)}")
 print("\n".join(tools))
 expected = 23 if "index_git_history" in tools else 21

@@ -367,6 +367,7 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 | `CODEBRAIN_EMBEDDER_PROVIDER` | `sentence-transformers` | 稳定版只支持本地 provider：`sentence-transformers` 或 `ollama`。 |
 | `CODEBRAIN_EMBEDDER_MODEL` | `all-MiniLM-L6-v2` | 英文为主的小模型（384 维，约 90MB）。中文为主的约定推荐 `paraphrase-multilingual-MiniLM-L12-v2`（384 维，约 470MB）。 |
 | `CODEBRAIN_EMBEDDER_DEVICE` | `cpu` | sentence-transformers 运行设备。默认 CPU 以避免占用显存；可显式设置 `cuda`、`cuda:0` 或 `auto`。 |
+| `CODEBRAIN_OLLAMA_BATCH_SIZE` | `32` | 单次发送给 Ollama 的最大文本数量；大批量会自动分块，降低超时和显存峰值风险。 |
 | `CODEBRAIN_OLLAMA_URL` | `http://localhost:11434` | 本机 Ollama embedding 服务地址；保持 localhost，除非团队明确批准内网服务。 |
 | `CODEBRAIN_DB_PATH` | `.codebrain/codebrain.db` | 建议配置成每个项目自己的绝对路径。 |
 | `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` | `.codebrain/conventions` | 建议配置成每个项目自己的绝对路径。 |
