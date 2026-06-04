@@ -6,6 +6,7 @@ param(
     [string]$McpJson = "",
     [string]$EmbedderModel = "paraphrase-multilingual-MiniLM-L12-v2",
     [switch]$RunSidecarIndex,
+    [switch]$RunStdioSmoke,
     [switch]$RunTests
 )
 
@@ -121,6 +122,17 @@ if ($McpJson) {
         throw "MCP config does not contain mcpServers.codebase-brain"
     }
     Write-Host "[OK] MCP JSON parses and contains codebase-brain"
+}
+
+if ($RunStdioSmoke) {
+    if (-not $McpJson) {
+        throw "RunStdioSmoke requires -McpJson."
+    }
+    Write-Host "`n== MCP stdio smoke =="
+    & $python (Join-Path $CodebrainRoot "scripts\smoke-mcp-stdio.py") $McpJson
+    if ($LASTEXITCODE -ne 0) {
+        throw "MCP stdio smoke failed with exit code $LASTEXITCODE"
+    }
 }
 
 Write-Host "`nPASS: static Windows deployment checks completed."

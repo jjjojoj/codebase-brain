@@ -99,7 +99,8 @@ Qoder 可能存在多个 MCP 配置文件。若 UI 配置没有生效，请联�
 powershell -ExecutionPolicy Bypass -File D:\cb\scripts\verify-qoder-windows.ps1 `
   -ProjectRoot "D:\项目\你的业务仓库" `
   -McpJson "D:\cb\.local-configs\你的业务仓库-mcp.json" `
-  -RunSidecarIndex
+  -RunSidecarIndex `
+  -RunStdioSmoke
 ```
 
 该命令必须直接在 Windows PowerShell 中运行。不要从 WSL 调用它。
