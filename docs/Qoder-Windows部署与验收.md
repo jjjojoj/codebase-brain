@@ -133,6 +133,7 @@ Qoder 可能同时存在 SharedClientCache 和 `extension/local/mcp.json`。当�
 以下调用默认异步，目的是避免 Qoder 工具调用超时：
 
 - `brain_sync_project`
+- `brain_context_for_task`
 - `get_co_changed_files`
 - `index_git_history`，仅实验开关启用时存在
 

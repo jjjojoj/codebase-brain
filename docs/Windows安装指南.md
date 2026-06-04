@@ -86,7 +86,8 @@ Qoder 可能存在多个 MCP 配置文件。若 UI 配置没有生效，请联�
 
 ```text
 调用 brain_context_for_task，为“我当前要处理的任务”生成上下文包，
-根据约定、相关符号和 Git 历史制定修改计划。
+拿到 job_id 后轮询 brain_index_job_status，成功后根据 result 中的约定、
+相关符号和 Git 历史制定修改计划。
 ```
 
 日常工具使用方法见 [`使用指南.md`](使用指南.md)。

@@ -322,11 +322,11 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 
 | 工具 | 说明 |
 | --- | --- |
-| `brain_context_for_task` | 根据自然语言任务返回 Context Pack：约定、会话记忆、Git 只读信号、可选图谱结果和降级 warnings。 |
+| `brain_context_for_task` | 根据自然语言任务生成 Context Pack；默认异步返回 job，轮询 `brain_index_job_status` 获取结果，避免客户端超时。 |
 | `brain_status` | 面向 AI 客户端的一站式能力检查：本地知识层、sidecar 图谱、隐私开关。 |
 | `brain_sync_status` | 根据文件过滤快照判断项目是否需要重新索引。 |
 | `brain_sync_project` | sync-trigger 式索引入口；默认异步排队，也可以设置 `async_mode=false` 同步执行。 |
-| `brain_index_job_status` | 查看当前 MCP 进程内异步索引 job 状态。 |
+| `brain_index_job_status` | 查看当前 MCP 进程内异步 job 状态、线程存活状态和运行时长。 |
 | `brain_index_project` | 索引当前项目：可调用 `codebase-memory-mcp` 建图，同时索引 `.codebrain/conventions`；支持 `graph_mode` (`full` / `moderate` / `fast`) 和 `graph_persistence`。 |
 | `brain_explain_symbol` | 解释函数、类或其它符号：组合图谱搜索、调用链追踪和团队约定搜索。 |
 

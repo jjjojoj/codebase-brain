@@ -294,6 +294,7 @@ def test_brain_context_for_task_assembles_local_and_graph_context(
         files=["src/auth/tokens.py"],
         symbols=["TokenService"],
         top_k=3,
+        async_mode=False,
     )
 
     assert result["task"] == "重构 auth 模块的 token 刷新逻辑"
@@ -301,3 +302,16 @@ def test_brain_context_for_task_assembles_local_and_graph_context(
     assert result["critical_conventions"][0]["title"] == "Auth boundaries"
     assert result["related_symbols"] == []
     assert "graph sidecar not available" in result["warnings"]
+
+
+def test_brain_context_for_task_defaults_to_async(monkeypatch, container) -> None:
+    monkeypatch.setattr(
+        brain_tools,
+        "_build_context_pack",
+        lambda **kwargs: {"task": kwargs["task"], "status": "ready"},
+    )
+
+    result = brain_tools.brain_context_for_task("inspect auth")
+
+    assert result["status"] == "queued"
+    assert result["job"]["description"].startswith("context-pack")

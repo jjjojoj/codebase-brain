@@ -41,6 +41,7 @@ class IndexJob:
 
 
 _jobs: dict[str, IndexJob] = {}
+_threads: dict[str, Thread] = {}
 _lock = Lock()
 
 
@@ -51,6 +52,8 @@ def start_job(description: str, target: JobTarget) -> dict[str, Any]:
         _jobs[job.id] = job
 
     thread = Thread(target=_run_job, args=(job.id, target), daemon=True)
+    with _lock:
+        _threads[job.id] = thread
     thread.start()
     return job.as_dict()
 
@@ -62,6 +65,12 @@ def get_job(job_id: str) -> dict[str, Any]:
         if not job:
             return {"ok": False, "status": "not_found", "job_id": job_id}
         data = job.as_dict()
+        thread = _threads.get(job_id)
+        if job.status == "running" and thread and thread.is_alive():
+            job.updated_at = _now()
+            data = job.as_dict()
+        data["thread_alive"] = bool(thread and thread.is_alive())
+        data["elapsed_seconds"] = _elapsed_seconds(job.created_at)
     data["ok"] = True
     return data
 
@@ -77,6 +86,7 @@ def clear_jobs_for_tests() -> None:
     """Clear job state for isolated tests."""
     with _lock:
         _jobs.clear()
+        _threads.clear()
 
 
 def _run_job(job_id: str, target: JobTarget) -> None:
@@ -104,3 +114,11 @@ def _update_job(
             job.result = result
         if error:
             job.error = error
+
+
+def _elapsed_seconds(created_at: str) -> float:
+    try:
+        created = datetime.fromisoformat(created_at)
+    except ValueError:
+        return 0.0
+    return round((datetime.now(UTC) - created).total_seconds(), 3)

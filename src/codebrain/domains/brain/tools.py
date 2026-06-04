@@ -23,25 +23,56 @@ def brain_context_for_task(
     files: list[str] | None = None,
     symbols: list[str] | None = None,
     top_k: int = 5,
+    async_mode: bool = True,
 ) -> dict[str, Any]:
-    """Return a compact Context Pack for a natural-language coding task."""
+    """Return or asynchronously build a compact Context Pack for a coding task."""
     task = _require_text(task, "task")
     top_k = _bounded_int(top_k, "top_k", minimum=1, maximum=20)
     resolved_repo = _resolve_repo_path(repo_path)
     files = _clean_text_list(files)
     symbols = _clean_text_list(symbols)
+
+    def target() -> dict[str, Any]:
+        return _build_context_pack(
+            task=task,
+            repo_path=resolved_repo,
+            files=files,
+            symbols=symbols,
+            top_k=top_k,
+        )
+
+    if async_mode:
+        job = jobs.start_job(f"context-pack {task[:80]}", target)
+        return {
+            "ok": True,
+            "status": "queued",
+            "job": job,
+            "hint": "Poll brain_index_job_status(job_id) for the Context Pack",
+        }
+    return target()
+
+
+def _build_context_pack(
+    *,
+    task: str,
+    repo_path: str,
+    files: list[str],
+    symbols: list[str],
+    top_k: int,
+) -> dict[str, Any]:
+    """Build one Context Pack after inputs have been validated."""
     container = get_container()
     local = local_context.gather_local_context(
         task=task,
         files=files,
-        repo_path=resolved_repo,
+        repo_path=repo_path,
         top_k=top_k,
         repository=_make_repository(),
     )
     graph = graph_context.gather_graph_context(
         task=task,
         symbols=symbols,
-        repo_path=resolved_repo,
+        repo_path=repo_path,
         top_k=top_k,
         adapter=_make_codebase_memory_adapter(container.settings),
     )

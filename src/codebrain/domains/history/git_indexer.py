@@ -115,23 +115,20 @@ def get_co_changed(
     limit: int = 10,
     max_commits: int = 50,
 ) -> list[dict[str, Any]]:
-    """Return files commonly changed with file_path.
-
-    Two-phase approach: git log for hashes+dates, then git diff-tree
-    (lighter than git show) per commit for co-changed files.
-    """
+    """Return files commonly changed with file_path using one git process."""
     repo = _resolve_repo(repo_path)
     if limit < 1 or not _is_git_repo(repo) or not _has_commits(repo):
         return []
 
-    # Phase 1: get hashes and dates in one pass
     log_result = _run_git(
         repo,
         [
             "log",
             f"-n{max_commits}",
-            f"--format=%H{GIT_FIELD_SEPARATOR}%ad",
+            f"--format={GIT_RECORD_SEPARATOR}%ad",
             "--date=iso-strict",
+            "--name-only",
+            "--full-diff",
             "--",
             file_path,
         ],
@@ -139,25 +136,16 @@ def get_co_changed(
     if not log_result.ok or not log_result.stdout.strip():
         return []
 
-    commits: list[tuple[str, str]] = []
-    for line in log_result.stdout.splitlines():
-        parts = line.split(GIT_FIELD_SEPARATOR, 1)
-        if len(parts) == 2:
-            commits.append((parts[0], parts[1]))
-
-    # Phase 2: for each commit, use diff-tree (no diff, just file names)
     counts: Counter[str] = Counter()
     last_changed: dict[str, str] = {}
-    for commit_hash, date in commits:
-        files_result = _run_git(
-            repo,
-            ["diff-tree", "--no-commit-id", "--name-only", "-r", commit_hash],
-        )
-        if not files_result.ok:
+    for raw_record in log_result.stdout.split(GIT_RECORD_SEPARATOR):
+        record = raw_record.strip()
+        if not record:
             continue
+        date, _, files_blob = record.partition("\n")
         changed_files = [
             line.strip()
-            for line in files_result.stdout.splitlines()
+            for line in files_blob.splitlines()
             if line.strip()
         ]
         if file_path not in changed_files:
