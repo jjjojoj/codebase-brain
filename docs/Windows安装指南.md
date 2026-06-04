@@ -19,6 +19,19 @@
 `codebase-memory-mcp.exe` 解压到这里，Codebase Brain 再调用它完成符号搜索、调用链和代码图谱
 索引。不要把 sidecar 单独配置成第二个 MCP Server。
 
+### 仓库路径要求
+
+当前 Windows sidecar `v0.7.0` 无法索引包含中文字符的仓库路径。本地约定、会话记忆和 Git
+只读工具仍可使用中文路径，但代码图谱会失败。
+
+需要完整图谱能力时，请把业务仓库放在纯英文路径，例如：
+
+```text
+D:\projects\django-test
+```
+
+不要使用 `D:\中文目录\django-test`。这是 sidecar 的当前限制，不是 Python 安装问题。
+
 ## 第一次安装
 
 先关闭 Qoder、Cursor 和其它可能启动 Codebase Brain 的 MCP 客户端，然后打开 Windows
@@ -85,6 +98,7 @@ Qoder 可能存在多个 MCP 配置文件。若 UI 配置没有生效，请联�
 ```powershell
 powershell -ExecutionPolicy Bypass -File D:\cb\scripts\verify-qoder-windows.ps1 `
   -ProjectRoot "D:\项目\你的业务仓库" `
+  -McpJson "D:\cb\.local-configs\你的业务仓库-mcp.json" `
   -RunSidecarIndex
 ```
 

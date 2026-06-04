@@ -120,7 +120,7 @@ Qoder 可能同时存在 SharedClientCache 和 `extension/local/mcp.json`。当�
 | 服务 | `health.ok=true`，`stable_profile=mvp`，数据库路径正确 |
 | 工具面 | 默认 21 个工具 |
 | 图谱 | `brain_status.graph` 显示 sidecar 可用 |
-| 中文路径 | `brain_index_project` 能索引中文路径业务仓库 |
+| 仓库路径 | 完整图谱验收使用纯英文路径；sidecar `v0.7.0` 暂不支持中文仓库路径 |
 | 约定 | `index_convention_files` 后能用 `search_conventions` 命中 |
 | 异步任务 | queued 后可用 `brain_index_job_status(job_id)` 得到 succeeded/failed |
 | 降级 | sidecar 不可用时，约定、记忆和 Git 只读工具仍可用 |
@@ -179,7 +179,7 @@ git switch --detach <已验证提交>
 | --- | --- |
 | Qoder 看不到工具 | 检查实际生效的 `extension/local/mcp.json`、绝对路径和 JSON 转义 |
 | 调用约 30 秒后失败 | 检查 Qoder 生效配置的 timeout；长任务使用默认异步模式 |
-| 图谱失败但其它工具正常 | 检查 sidecar 路径、版本和中文路径；这是可预期降级 |
+| 图谱失败但其它工具正常 | 检查 sidecar 路径和版本；中文仓库路径在 sidecar `v0.7.0` 下会降级 |
 | 第一次语义检索很慢 | 本地模型首次下载或冷启动；部署验收时提前预热 |
 | job 一直找不到 | MCP 进程可能已重启；重新发起异步任务 |
 | 数据写错项目 | 检查 `CODEBRAIN_DB_PATH` 和 `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` 绝对路径 |

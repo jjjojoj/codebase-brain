@@ -3,6 +3,9 @@
 本文说明如何在 Windows 11 的 Cursor 中接入 Codebase Brain。首次安装 Codebase Brain 前，
 先完成 [`Windows安装指南.md`](Windows安装指南.md)。
 
+需要代码图谱能力时，业务仓库路径必须为纯英文路径；Windows sidecar `v0.7.0` 暂不支持中文
+仓库路径。
+
 ## 1. 获取生成的 MCP 配置
 
 安装脚本会生成：

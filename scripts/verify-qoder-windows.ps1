@@ -2,7 +2,9 @@ param(
     [string]$CodebrainRoot = "D:\cb",
     [Parameter(Mandatory = $true)]
     [string]$ProjectRoot,
-    [string]$QoderMcpJson = "",
+    [Alias("QoderMcpJson")]
+    [string]$McpJson = "",
+    [string]$EmbedderModel = "paraphrase-multilingual-MiniLM-L12-v2",
     [switch]$RunSidecarIndex,
     [switch]$RunTests
 )
@@ -42,6 +44,7 @@ if (Test-Path -LiteralPath $sidecar) {
 $env:CODEBRAIN_DB_PATH = $dbPath
 $env:CODEBRAIN_DEFAULT_CONVENTIONS_PATH = $conventionsPath
 $env:CODEBRAIN_CODEBASE_MEMORY_BINARY = $sidecar
+$env:CODEBRAIN_EMBEDDER_MODEL = $EmbedderModel
 
 Write-Host "`n== Git version =="
 git -C $CodebrainRoot status --short --branch
@@ -75,7 +78,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if ($RunSidecarIndex) {
-    Write-Host "`n== Sidecar Chinese-path fast index =="
+    Write-Host "`n== Sidecar fast index =="
     $env:CODEBRAIN_VERIFY_PROJECT_ROOT = $ProjectRoot
     $sidecarCheck = @'
 import json
@@ -110,16 +113,16 @@ if ($RunTests) {
     }
 }
 
-if ($QoderMcpJson) {
-    Write-Host "`n== Qoder MCP JSON =="
-    Assert-PathExists $QoderMcpJson "Qoder MCP config"
-    $config = Get-Content -LiteralPath $QoderMcpJson -Raw | ConvertFrom-Json
+if ($McpJson) {
+    Write-Host "`n== MCP JSON =="
+    Assert-PathExists $McpJson "MCP config"
+    $config = [IO.File]::ReadAllText($McpJson) | ConvertFrom-Json
     if ($null -eq $config.mcpServers."codebase-brain") {
-        throw "Qoder MCP config does not contain mcpServers.codebase-brain"
+        throw "MCP config does not contain mcpServers.codebase-brain"
     }
-    Write-Host "[OK] Qoder MCP JSON parses and contains codebase-brain"
+    Write-Host "[OK] MCP JSON parses and contains codebase-brain"
 }
 
-Write-Host "`nPASS: static Windows/Qoder deployment checks completed."
-Write-Host "Next: restart Qoder and call health, brain_status, and brain_index_project against:"
+Write-Host "`nPASS: static Windows deployment checks completed."
+Write-Host "Next: restart the MCP client and call health, brain_status, and brain_index_project against:"
 Write-Host $ProjectRoot
