@@ -21,7 +21,7 @@ def search_history(
     file_filter: str | None = None,
     top_k: int = 10,
 ) -> list[dict[str, Any]]:
-    """Search indexed git history by semantic similarity."""
+    """Use only for experimental semantic Git-history deep dives when explicitly enabled."""
     _require_git_history_index_enabled()
     return logic.search_history(_repo(), query, file_filter, top_k)
 
@@ -32,7 +32,7 @@ def get_blame(
     end_line: int,
     repo_path: str = ".",
 ) -> list[dict[str, Any]]:
-    """Use for targeted line-level history after brain_context_for_task needs deeper blame."""
+    """Use only when Context Pack lacks line-level authorship or rationale for a code range."""
     return git_indexer.get_blame_info(repo_path, file_path, start_line, end_line)
 
 
@@ -43,7 +43,7 @@ def get_co_changed_files(
     max_commits: int = 50,
     async_mode: bool = True,
 ) -> dict[str, Any]:
-    """Use for deeper single-file impact analysis after brain_context_for_task.
+    """Use only when Context Pack lacks enough single-file co-change impact detail.
 
     Defaults to async_mode=True because Qoder has a ~30s hardcoded
     tool-call timeout that kills even fast git operations via MCP.
@@ -74,7 +74,7 @@ def get_recent_changes(
     limit: int = 10,
     repo_path: str = ".",
 ) -> list[dict[str, str]]:
-    """Use for deeper single-file history after brain_context_for_task."""
+    """Use only when Context Pack lacks enough commit history for one specific file."""
     return git_indexer.get_recent_changes(repo_path, file_path, limit)
 
 
@@ -84,7 +84,7 @@ def index_git_history(
     max_entries: int = 500,
     async_mode: bool = True,
 ) -> dict[str, Any]:
-    """Index recent git commit/file history into the git_history collection.
+    """Use only when experimental semantic Git-history indexing is explicitly enabled.
 
     Defaults to async_mode=True to avoid Qoder tool-call timeouts
     caused by sentence-transformers cold-start. When async, returns

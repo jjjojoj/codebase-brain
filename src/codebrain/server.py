@@ -19,7 +19,20 @@ except ImportError as exc:
         "mcp package required. Install with: pip install mcp"
     ) from exc
 
-mcp = FastMCP(name="codebase-brain")
+mcp = FastMCP(
+    name="codebase-brain",
+    instructions=(
+        "Automatically manage Codebase Brain tools without asking the user to name tools. "
+        "Before planning or editing code, call brain_context_for_task and poll queued jobs. "
+        "For complex, multi-step, or cross-session work, start one session automatically. "
+        "During an active session, record only finalized decisions, solved non-obvious "
+        "problems, and meaningful file changes; skip tentative ideas and trivial edits. "
+        "Before task completion or handoff, run relevant tests, record remaining meaningful "
+        "changes, end the active session, and refresh stale project knowledge when needed. "
+        "Use low-level graph, convention, memory, and Git tools only when the Context Pack "
+        "is insufficient or for setup and diagnostics."
+    ),
+)
 
 
 # --- Health tool ---

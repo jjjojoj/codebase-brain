@@ -15,32 +15,52 @@ def _repo() -> Repository:
 
 
 def start_session(task_description: str) -> dict[str, Any]:
-    """Start a new session and return similar past sessions."""
+    """Automatically call once after Context Pack for complex or cross-session work.
+
+    Use for multi-step tasks where decisions, solved problems, or file changes
+    should survive the current conversation. Skip trivial, read-only, or one-step tasks.
+    """
     return logic.start_session(_repo(), task_description)
 
 
 def record_decision(decision: str, reason: str = "") -> dict[str, str]:
-    """Record an architectural or implementation decision for the active session."""
+    """Automatically record a finalized meaningful decision in the active session.
+
+    Call when an implementation or architecture choice is accepted and its reason
+    is known. Do not record tentative ideas, obvious mechanics, or unresolved options.
+    """
     return logic.record_decision(decision, reason)
 
 
 def record_problem(problem: str, solution: str, files: str = "") -> dict[str, str]:
-    """Record a solved problem and the files involved in the active session."""
+    """Automatically record a solved non-obvious problem in the active session.
+
+    Call after root cause and verified solution are known. Do not record unresolved
+    speculation, routine errors, or failed attempts as final solutions.
+    """
     return logic.record_problem(problem, solution, files)
 
 
 def record_file_change(
     file_path: str, change_type: str, description: str
 ) -> dict[str, str]:
-    """Track a file changed during the active session and why it changed."""
+    """Automatically record each meaningful file change in the active session.
+
+    Call after a source, test, configuration, or documentation change is complete
+    and its purpose is clear. Skip generated files, formatting-only churn, and trivial edits.
+    """
     return logic.record_file_change(file_path, change_type, description)
 
 
 def end_session(summary: str = "") -> dict[str, str]:
-    """Persist the active session to storage and clear active in-memory state."""
+    """Automatically call once when complex work is complete or being handed off.
+
+    Call after relevant tests and final meaningful records. Summarize outcomes,
+    remaining risks, and follow-up work. Do not call mid-task.
+    """
     return logic.end_session(_repo(), summary)
 
 
 def recall_context(task_description: str, top_k: int = 5) -> list[dict[str, Any]]:
-    """Use after brain_context_for_task when deeper past-session recall is needed."""
+    """Use only when Context Pack lacks enough past-session detail for the task."""
     return logic.recall_context(_repo(), task_description, top_k)

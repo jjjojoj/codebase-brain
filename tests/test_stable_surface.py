@@ -29,19 +29,49 @@ def test_stable_mcp_surface_excludes_git_history_vector_tools() -> None:
     assert "search_history" not in tools
 
 
-def test_tool_descriptions_guide_ai_toward_composed_entrypoint() -> None:
+def test_server_instructions_define_automatic_tool_lifecycle() -> None:
     from codebrain import server
 
-    tools = server.mcp._tool_manager._tools
+    instructions = server.mcp.instructions
 
-    assert "Use first before planning or editing code" in tools[
-        "brain_context_for_task"
-    ].description
-    assert "after brain_context_for_task" in tools["get_recent_changes"].description
-    assert "after brain_context_for_task" in tools["get_blame"].description
-    assert "after brain_context_for_task" in tools["get_co_changed_files"].description
-    assert "after brain_context_for_task" in tools["search_conventions"].description
-    assert "after brain_context_for_task" in tools["recall_context"].description
+    assert "without asking the user to name tools" in instructions
+    assert "Before planning or editing code" in instructions
+    assert "start one session automatically" in instructions
+    assert "record only finalized decisions" in instructions
+    assert "end the active session" in instructions
+
+
+def test_all_stable_tool_descriptions_define_ai_decision_triggers() -> None:
+    from codebrain import server
+
+    expected = {
+        "add_convention": "Use only",
+        "brain_context_for_task": "Automatically call first",
+        "brain_explain_symbol": "Use only when Context Pack lacks",
+        "brain_index_job_status": "Automatically poll",
+        "brain_index_project": "Use only for initial setup",
+        "brain_status": "Use only for setup or diagnostics",
+        "brain_sync_project": "Automatically refresh",
+        "brain_sync_status": "Automatically check",
+        "end_session": "Automatically call once",
+        "get_blame": "Use only when Context Pack lacks",
+        "get_co_changed_files": "Use only when Context Pack lacks",
+        "get_recent_changes": "Use only when Context Pack lacks",
+        "health": "Use only to diagnose",
+        "index_convention_files": "Automatically use after",
+        "list_conventions": "Use for convention maintenance or diagnostics",
+        "recall_context": "Use only when Context Pack lacks",
+        "record_decision": "Automatically record a finalized",
+        "record_file_change": "Automatically record each meaningful",
+        "record_problem": "Automatically record a solved",
+        "search_conventions": "Use only when Context Pack lacks",
+        "start_session": "Automatically call once after Context Pack",
+    }
+
+    tools = server.mcp._tool_manager._tools
+    assert set(tools) == set(expected)
+    for name, trigger in expected.items():
+        assert trigger in tools[name].description
 
 
 def test_git_history_vector_tools_register_only_when_flag_enabled(monkeypatch) -> None:

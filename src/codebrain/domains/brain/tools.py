@@ -25,11 +25,12 @@ def brain_context_for_task(
     top_k: int = 5,
     async_mode: bool = True,
 ) -> dict[str, Any]:
-    """Use first before planning or editing code to gather a complete Context Pack.
+    """Automatically call first before planning, editing, reviewing, or debugging code.
 
     Automatically combines graph symbols, conventions, session memory, recent
     changes, co-changed files, and blame samples. Provide files or symbols when
-    known; otherwise relevant source files are inferred from graph results.
+    known; otherwise relevant source files are inferred from graph results. Poll
+    the returned job automatically. Do not make the user request low-level tools first.
     """
     task = _require_text(task, "task")
     top_k = _bounded_int(top_k, "top_k", minimum=1, maximum=20)
@@ -86,7 +87,7 @@ def _build_context_pack(
 
 
 def brain_status(repo_path: str = ".") -> dict[str, Any]:
-    """Use for setup or diagnostics, not as a substitute for task context."""
+    """Use only for setup or diagnostics, not as a substitute for task context."""
     container = get_container()
     settings = container.settings
     graph = _make_codebase_memory_adapter(settings)
@@ -139,7 +140,7 @@ def brain_sync_status(
     include_patterns: str | list[str] | None = None,
     exclude_patterns: str | list[str] | None = None,
 ) -> dict[str, Any]:
-    """Use before indexing to check whether project changes require a graph refresh."""
+    """Automatically check after meaningful code changes before refreshing project knowledge."""
     settings = get_container().settings
     return indexing.sync_status(
         repo_path,
@@ -160,7 +161,7 @@ def brain_sync_project(
     graph_mode: str = "full",
     graph_persistence: bool = False,
 ) -> dict[str, Any]:
-    """Use after code changes to asynchronously refresh stale project knowledge."""
+    """Automatically refresh project knowledge when brain_sync_status reports it stale."""
     status = brain_sync_status(
         repo_path,
         include_patterns=include_patterns,
@@ -208,7 +209,7 @@ def brain_sync_project(
 
 
 def brain_index_job_status(job_id: str | None = None) -> dict[str, Any]:
-    """Use to poll any queued Codebase Brain job until it succeeds or fails."""
+    """Automatically poll any queued Codebase Brain job until it succeeds or fails."""
     if job_id:
         return jobs.get_job(job_id)
     return jobs.list_jobs()
@@ -221,7 +222,7 @@ def brain_index_project(
     graph_mode: str = "full",
     graph_persistence: bool = False,
 ) -> dict[str, Any]:
-    """Use for initial project setup to synchronously index graph and conventions."""
+    """Use only for initial setup or explicit re-indexing; this synchronous call may be slow."""
     container = get_container()
     settings = container.settings
     resolved_repo = _resolve_repo_path(repo_path)
@@ -257,7 +258,7 @@ def brain_explain_symbol(
     top_k: int = 5,
     include_conventions: bool = True,
 ) -> dict[str, Any]:
-    """Use when deeper symbol-level call-path analysis is needed after Context Pack."""
+    """Use only when Context Pack lacks enough symbol-level call-path or impact detail."""
     symbol = _require_text(symbol, "symbol")
     depth = _bounded_int(depth, "depth", minimum=1, maximum=5)
     top_k = _bounded_int(top_k, "top_k", minimum=1, maximum=20)
