@@ -82,18 +82,23 @@ def _graph_queries(task: str, symbols: list[str] | None) -> list[str]:
         return queries
 
     candidates = re.findall(r"[A-Za-z_][A-Za-z0-9_.]*", task)
-    useful: list[str] = []
+    symbol_like: list[str] = []
+    general: list[str] = []
     seen: set[str] = set()
     for candidate in candidates:
         normalized = candidate.strip("._")
         lowered = normalized.lower()
         if len(normalized) < 3 or lowered in _TASK_QUERY_STOPWORDS or lowered in seen:
             continue
-        useful.append(normalized)
+        target = symbol_like if _looks_symbol_like(normalized) else general
+        target.append(normalized)
         seen.add(lowered)
-        if len(useful) >= 5:
-            break
+    useful = [*symbol_like, *general][:5]
     return useful or [task]
+
+
+def _looks_symbol_like(value: str) -> bool:
+    return any(char.isupper() for char in value[1:]) or "_" in value or "." in value
 
 
 def _extract_symbols(query: str, result: dict[str, Any]) -> list[dict[str, Any]]:
