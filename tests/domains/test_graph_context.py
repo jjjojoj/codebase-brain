@@ -21,12 +21,14 @@ def test_gather_graph_context_degrades_when_adapter_is_missing() -> None:
 class RecordingAdapter:
     def __init__(self) -> None:
         self.queries: list[str] = []
+        self.limits: list[int] = []
 
     def status(self) -> dict[str, Any]:
         return {"available": True}
 
     def search_graph(self, symbol: str, repo_path: str, limit: int) -> dict[str, Any]:
         self.queries.append(symbol)
+        self.limits.append(limit)
         return {
             "ok": True,
             "data": {"results": [{"name": f"{symbol}Result"}]},
@@ -43,6 +45,7 @@ def test_gather_graph_context_extracts_symbol_like_task_keywords() -> None:
     )
 
     assert adapter.queries == ["ModelBackend", "authentication"]
+    assert adapter.limits == [10, 10]
     assert result["status"] == "ready"
 
 
