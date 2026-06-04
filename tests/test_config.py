@@ -6,9 +6,22 @@ from codebrain.config import Settings
 from codebrain.core.di import Container
 
 
-def test_settings_defaults() -> None:
+def test_settings_defaults(monkeypatch) -> None:
     """Settings should have sensible defaults."""
-    s = Settings()
+    for name in (
+        "CODEBRAIN_EMBEDDER_PROVIDER",
+        "CODEBRAIN_VECTOR_STORE_BACKEND",
+        "CODEBRAIN_CONVENTIONS_ENABLED",
+        "CODEBRAIN_SESSION_MEMORY_ENABLED",
+        "CODEBRAIN_HISTORY_ENABLED",
+        "CODEBRAIN_GIT_HISTORY_INDEX_ENABLED",
+        "CODEBRAIN_DEFAULT_CONVENTIONS_PATH",
+        "CODEBRAIN_MILVUS_URI",
+        "CODEBRAIN_MILVUS_COLLECTION_PREFIX",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    s = Settings(_env_file=None)
     assert s.embedder_provider == "sentence-transformers"
     assert s.vector_store_backend == "sqlite"
     assert s.conventions_enabled is True
