@@ -73,7 +73,6 @@ def test_gather_graph_context_maps_chinese_code_terms() -> None:
         "authentication",
         "auth",
         "login",
-        "Django",
     ]
 
 

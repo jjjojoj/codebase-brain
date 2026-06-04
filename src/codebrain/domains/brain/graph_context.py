@@ -63,15 +63,16 @@ def gather_graph_context(
             "warnings": ["graph sidecar not available"],
         }
 
+    queries = _graph_queries(task, symbols)
     related_symbols: list[dict[str, Any]] = []
     warnings: list[str] = []
-    for query in _graph_queries(task, symbols):
+    for query in queries:
         result = graph.search_graph(symbol=query, repo_path=repo_path, limit=top_k)
         if result.get("ok") is True:
             related_symbols.extend(_extract_symbols(query, result))
         else:
             warnings.append(f"graph search unavailable for {query}")
-    related_symbols = _rank_and_dedupe(related_symbols)
+    related_symbols = _select_diverse(_rank_and_dedupe(related_symbols), queries, top_k)
 
     return {
         "status": "ready" if related_symbols else "empty",
@@ -103,7 +104,7 @@ def _graph_queries(task: str, symbols: list[str] | None) -> list[str]:
         if term in task
         for query in queries
     ]
-    useful = _dedupe_text([*symbol_like, *mapped, *general])[:8]
+    useful = _dedupe_text([*symbol_like, *mapped, *(general if not mapped else [])])[:8]
     return useful or [task]
 
 
@@ -145,7 +146,41 @@ def _symbol_score(row: dict[str, Any]) -> tuple[int, int, int, int, int]:
     production = int(not row.get("is_test") and "/test" not in file_path)
     code_symbol = int(label in {"function", "method", "class"})
     degree = _as_int(row.get("in_degree")) * 2 + _as_int(row.get("out_degree"))
-    return exact, prefix, production, code_symbol, degree
+    return exact, production, code_symbol, prefix, degree
+
+
+def _select_diverse(
+    ranked: list[dict[str, Any]],
+    queries: list[str],
+    top_k: int,
+) -> list[dict[str, Any]]:
+    selected: list[dict[str, Any]] = []
+    selected_keys: set[str] = set()
+    for query in queries:
+        match = next(
+            (row for row in ranked if str(row.get("query", "")).lower() == query.lower()),
+            None,
+        )
+        if match is not None:
+            _append_unique(selected, selected_keys, match)
+        if len(selected) >= top_k:
+            return sorted(selected, key=_symbol_score, reverse=True)
+    for row in ranked:
+        _append_unique(selected, selected_keys, row)
+        if len(selected) >= top_k:
+            break
+    return sorted(selected, key=_symbol_score, reverse=True)
+
+
+def _append_unique(
+    selected: list[dict[str, Any]],
+    selected_keys: set[str],
+    row: dict[str, Any],
+) -> None:
+    key = str(row.get("qualified_name") or row.get("name") or row)
+    if key not in selected_keys:
+        selected.append(row)
+        selected_keys.add(key)
 
 
 def _as_int(value: Any) -> int:
