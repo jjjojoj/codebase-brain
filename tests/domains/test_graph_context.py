@@ -45,7 +45,7 @@ def test_gather_graph_context_extracts_symbol_like_task_keywords() -> None:
     )
 
     assert adapter.queries == ["ModelBackend", "authentication"]
-    assert adapter.limits == [10, 10]
+    assert adapter.limits == [25, 25]
     assert result["status"] == "ready"
 
 

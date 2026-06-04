@@ -66,7 +66,7 @@ def gather_graph_context(
     queries = _graph_queries(task, symbols)
     related_symbols: list[dict[str, Any]] = []
     warnings: list[str] = []
-    candidate_limit = min(max(top_k * 2, 10), 50)
+    candidate_limit = min(max(top_k * 5, 25), 50)
     for query in queries:
         result = graph.search_graph(symbol=query, repo_path=repo_path, limit=candidate_limit)
         if result.get("ok") is True:
