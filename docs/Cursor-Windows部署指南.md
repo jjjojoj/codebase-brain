@@ -22,7 +22,6 @@ D:\cb\.local-configs\<业务仓库名>-mcp.json
     "codebase-brain": {
       "command": "D:\\cb\\.venv\\Scripts\\codebrain.exe",
       "args": ["serve"],
-      "timeout": 300000,
       "env": {
         "CODEBRAIN_DB_PATH": "D:\\项目\\业务仓库\\.codebrain\\codebrain_full.db",
         "CODEBRAIN_DEFAULT_CONVENTIONS_PATH": "D:\\项目\\业务仓库\\.codebrain\\conventions",
@@ -36,14 +35,20 @@ D:\cb\.local-configs\<业务仓库名>-mcp.json
 
 ## 2. 配置 Cursor
 
-1. 打开 Cursor Settings。
-2. 找到 MCP 设置页面。
-3. 选择添加 MCP Server 或打开 MCP JSON 配置。
-4. 添加生成配置中的 `mcpServers.codebase-brain`。
-5. 保存配置并完全重启 Cursor。
+Cursor 官方支持两种 `mcp.json` 位置：
 
-Cursor 版本之间的配置入口可能变化，但 MCP Server 的核心字段始终是 `command`、`args` 和
-`env`。所有 Windows 路径必须使用绝对路径。
+- 项目级配置：业务仓库下的 `.cursor\mcp.json`。
+- 全局配置：用户目录下的 `.cursor\mcp.json`，例如
+  `C:\Users\<用户名>\.cursor\mcp.json`。
+
+Codebase Brain 的数据库和约定路径与业务仓库绑定，推荐使用项目级配置。创建
+`D:\projects\django-test\.cursor\mcp.json`，从安装脚本生成的 JSON 中复制 `command`、
+`args` 和 `env`。生成配置中的 `timeout` 是 Qoder 使用的扩展字段，Cursor 配置中应省略。
+保存后完全重启 Cursor。
+
+也可以打开 Cursor Settings 的 MCP 页面添加同一配置。Cursor 版本之间的设置入口可能变化，
+但 MCP Server 的核心字段始终是 `command`、`args` 和 `env`。所有 Windows 路径必须使用绝对
+路径。
 
 不要把 `D:\cb\sidecar\codebase-memory-mcp.exe` 单独添加为另一个 MCP Server。Cursor 只需要
 连接 `codebase-brain`，sidecar 由 Codebase Brain 内部调用。
@@ -82,3 +87,5 @@ Cursor 版本之间的配置入口可能变化，但 MCP Server 的核心字段�
 | 第一次语义搜索很慢 | 等待本地 embedding 模型首次下载和加载 |
 
 日常工作流见 [`使用指南.md`](使用指南.md)。
+
+参考： [Cursor 官方 MCP 文档](https://docs.cursor.com/zh/context/mcp)。
