@@ -56,6 +56,21 @@ def test_index_repository_passes_sidecar_mode(monkeypatch) -> None:
     assert result["data"]["project"] == "demo"
 
 
+def test_call_escapes_unicode_paths_for_windows_command_line(monkeypatch) -> None:
+    def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        assert "工作区" not in command[3]
+        assert "\\u5de5\\u4f5c\\u533a" in command[3]
+        assert json.loads(command[3])["repo_path"] == r"D:\工作区\demo"
+        return subprocess.CompletedProcess(command, 0, '{"project":"demo"}', "")
+
+    monkeypatch.setattr(codebase_memory, "_resolve_binary", lambda binary: r"D:\cb\sidecar.exe")
+    adapter = CodebaseMemoryAdapter(binary="cbm", runner=fake_runner)
+
+    result = adapter.call("index_repository", {"repo_path": r"D:\工作区\demo"})
+
+    assert result.ok is True
+
+
 def test_nonzero_exit_returns_error_text(monkeypatch) -> None:
     def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, 2, "bad args", "failed")

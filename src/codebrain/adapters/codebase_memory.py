@@ -127,7 +127,9 @@ class CodebaseMemoryAdapter:
             resolved_binary or self.binary,
             "cli",
             tool,
-            json.dumps(args, ensure_ascii=False),
+            # Keep Windows command-line arguments ASCII-only. The sidecar's
+            # JSON parser restores Unicode paths from \uXXXX escapes.
+            json.dumps(args, ensure_ascii=True),
         ]
         if not resolved_binary:
             return SidecarResult(
