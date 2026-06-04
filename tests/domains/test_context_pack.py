@@ -45,6 +45,8 @@ def test_context_pack_keeps_local_context_when_graph_is_unavailable() -> None:
     assert pack["status"]["graph"] == "missing"
     assert pack["critical_conventions"] == local_context["critical_conventions"]
     assert pack["recent_changes"] == local_context["recent_changes"]
+    assert pack["co_changed_files"] == []
+    assert pack["blame"] == []
     assert pack["similar_sessions"] == local_context["similar_sessions"]
     assert pack["related_symbols"] == []
     assert "graph sidecar not available" in pack["warnings"]
@@ -60,6 +62,8 @@ def test_context_pack_returns_valid_empty_pack_when_all_sources_empty() -> None:
     assert pack["critical_conventions"] == []
     assert pack["related_symbols"] == []
     assert pack["recent_changes"] == []
+    assert pack["co_changed_files"] == []
+    assert pack["blame"] == []
     assert pack["similar_sessions"] == []
     assert "graph sidecar not available" in pack["warnings"]
     assert "context pack has no results" in pack["warnings"]

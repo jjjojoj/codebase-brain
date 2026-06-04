@@ -27,12 +27,21 @@ def assemble_context_pack(
     critical_conventions = _as_list(local.get("critical_conventions"))
     related_symbols = _as_list(graph.get("related_symbols"))
     recent_changes = _as_list(local.get("recent_changes"))
+    co_changed_files = _as_list(local.get("co_changed_files"))
+    blame = _as_list(local.get("blame"))
     similar_sessions = _as_list(local.get("similar_sessions"))
     warnings = [
         *_as_list(local.get("warnings")),
         *_as_list(graph.get("warnings")),
     ]
-    if not any([critical_conventions, related_symbols, recent_changes, similar_sessions]):
+    if not any([
+        critical_conventions,
+        related_symbols,
+        recent_changes,
+        co_changed_files,
+        blame,
+        similar_sessions,
+    ]):
         warnings.append("context pack has no results")
 
     local_status = _as_dict(local.get("status"))
@@ -47,7 +56,10 @@ def assemble_context_pack(
         "status": status,
         "critical_conventions": critical_conventions,
         "related_symbols": related_symbols,
+        "context_files": _as_list(local.get("context_files")),
         "recent_changes": recent_changes,
+        "co_changed_files": co_changed_files,
+        "blame": blame,
         "similar_sessions": similar_sessions,
         "warnings": warnings,
         "suggested_next_steps": _suggested_next_steps(
@@ -56,6 +68,8 @@ def assemble_context_pack(
             warnings,
             critical_conventions=critical_conventions,
             recent_changes=recent_changes,
+            co_changed_files=co_changed_files,
+            blame=blame,
             similar_sessions=similar_sessions,
         ),
     }
@@ -81,6 +95,8 @@ def _local_status(local: dict[str, Any]) -> str:
     if any(_as_list(local.get(key)) for key in (
         "critical_conventions",
         "recent_changes",
+        "co_changed_files",
+        "blame",
         "similar_sessions",
     )):
         return "ready"
@@ -94,6 +110,8 @@ def _suggested_next_steps(
     *,
     critical_conventions: list[Any],
     recent_changes: list[Any],
+    co_changed_files: list[Any],
+    blame: list[Any],
     similar_sessions: list[Any],
 ) -> list[str]:
     steps: list[str] = []
@@ -102,7 +120,13 @@ def _suggested_next_steps(
         steps.append(
             "run brain_sync_project(force=true), then poll brain_index_job_status(job_id)"
         )
-    if not any([critical_conventions, recent_changes, similar_sessions]):
+    if not any([
+        critical_conventions,
+        recent_changes,
+        co_changed_files,
+        blame,
+        similar_sessions,
+    ]):
         steps.append(
             "no context found for this task; try broader keywords or index conventions first"
         )

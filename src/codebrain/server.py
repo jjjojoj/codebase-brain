@@ -25,7 +25,7 @@ mcp = FastMCP(name="codebase-brain")
 # --- Health tool ---
 @mcp.tool()
 def health() -> dict[str, Any]:
-    """Return server health and core dependency status."""
+    """Use only to diagnose MCP connectivity, storage, or embedding failures."""
     status: dict[str, Any] = {"ok": True, "name": "codebase-brain"}
     try:
         c = container

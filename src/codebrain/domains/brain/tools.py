@@ -25,7 +25,12 @@ def brain_context_for_task(
     top_k: int = 5,
     async_mode: bool = True,
 ) -> dict[str, Any]:
-    """Return or asynchronously build a compact Context Pack for a coding task."""
+    """Use first before planning or editing code to gather a complete Context Pack.
+
+    Automatically combines graph symbols, conventions, session memory, recent
+    changes, co-changed files, and blame samples. Provide files or symbols when
+    known; otherwise relevant source files are inferred from graph results.
+    """
     task = _require_text(task, "task")
     top_k = _bounded_int(top_k, "top_k", minimum=1, maximum=20)
     resolved_repo = _resolve_repo_path(repo_path)
@@ -62,13 +67,6 @@ def _build_context_pack(
 ) -> dict[str, Any]:
     """Build one Context Pack after inputs have been validated."""
     container = get_container()
-    local = local_context.gather_local_context(
-        task=task,
-        files=files,
-        repo_path=repo_path,
-        top_k=top_k,
-        repository=_make_repository(),
-    )
     graph = graph_context.gather_graph_context(
         task=task,
         symbols=symbols,
@@ -76,11 +74,19 @@ def _build_context_pack(
         top_k=top_k,
         adapter=_make_codebase_memory_adapter(container.settings),
     )
+    context_files = local_context.select_context_files(files, graph, limit=min(top_k, 3))
+    local = local_context.gather_local_context(
+        task=task,
+        files=context_files,
+        repo_path=repo_path,
+        top_k=top_k,
+        repository=_make_repository(),
+    )
     return context_pack.assemble_context_pack(task=task, local=local, graph=graph)
 
 
 def brain_status(repo_path: str = ".") -> dict[str, Any]:
-    """Return Codebase Brain 2.0 capability status for this project."""
+    """Use for setup or diagnostics, not as a substitute for task context."""
     container = get_container()
     settings = container.settings
     graph = _make_codebase_memory_adapter(settings)
@@ -109,12 +115,16 @@ def brain_status(repo_path: str = ".") -> dict[str, Any]:
             "supported_embedding_providers": ["sentence-transformers", "ollama"],
             "git_history_vector_index_enabled": settings.git_history_index_enabled,
         },
+        "primary_tool": "brain_context_for_task",
         "recommended_tools": [
+            "brain_context_for_task",
             "brain_index_project",
             "brain_sync_status",
             "brain_sync_project",
             "brain_index_job_status",
             "brain_explain_symbol",
+        ],
+        "deep_dive_tools": [
             "search_conventions",
             "recall_context",
             "get_recent_changes",
@@ -129,7 +139,7 @@ def brain_sync_status(
     include_patterns: str | list[str] | None = None,
     exclude_patterns: str | list[str] | None = None,
 ) -> dict[str, Any]:
-    """Check whether files changed enough to trigger project re-indexing."""
+    """Use before indexing to check whether project changes require a graph refresh."""
     settings = get_container().settings
     return indexing.sync_status(
         repo_path,
@@ -150,7 +160,7 @@ def brain_sync_project(
     graph_mode: str = "full",
     graph_persistence: bool = False,
 ) -> dict[str, Any]:
-    """Trigger indexing only when the filtered project snapshot changed."""
+    """Use after code changes to asynchronously refresh stale project knowledge."""
     status = brain_sync_status(
         repo_path,
         include_patterns=include_patterns,
@@ -198,7 +208,7 @@ def brain_sync_project(
 
 
 def brain_index_job_status(job_id: str | None = None) -> dict[str, Any]:
-    """Return async indexing job status."""
+    """Use to poll any queued Codebase Brain job until it succeeds or fails."""
     if job_id:
         return jobs.get_job(job_id)
     return jobs.list_jobs()
@@ -211,7 +221,7 @@ def brain_index_project(
     graph_mode: str = "full",
     graph_persistence: bool = False,
 ) -> dict[str, Any]:
-    """Index the project graph and local convention files when available."""
+    """Use for initial project setup to synchronously index graph and conventions."""
     container = get_container()
     settings = container.settings
     resolved_repo = _resolve_repo_path(repo_path)
@@ -247,7 +257,7 @@ def brain_explain_symbol(
     top_k: int = 5,
     include_conventions: bool = True,
 ) -> dict[str, Any]:
-    """Explain a symbol using graph search, call tracing, and team conventions."""
+    """Use when deeper symbol-level call-path analysis is needed after Context Pack."""
     symbol = _require_text(symbol, "symbol")
     depth = _bounded_int(depth, "depth", minimum=1, maximum=5)
     top_k = _bounded_int(top_k, "top_k", minimum=1, maximum=20)

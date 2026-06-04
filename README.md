@@ -294,8 +294,8 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 2. 调用 `index_convention_files`。
 3. 如果安装了 `codebase-memory-mcp`，调用 `brain_index_project` 索引代码图谱和约定。
 4. 后续修改代码后调用 `brain_sync_status`，如果返回 `needs_sync: true`，再调用 `brain_sync_project`。
-5. 开始复杂任务时调用 `start_session`。
-6. 修改不熟悉的符号前调用 `brain_explain_symbol`，再按需调用 `get_recent_changes`、`get_blame` 或 `get_co_changed_files`。
+5. 每个代码任务在计划或修改前先调用 `brain_context_for_task`；它会自动聚合图谱、约定、记忆和 Git 上下文。
+6. 只有 Context Pack 不足时，才按需调用 `brain_explain_symbol` 或低层 Git 工具深挖。
 7. 遇到重要决策或问题时调用 `record_decision` / `record_problem`。
 8. 任务结束时调用 `end_session`。
 
@@ -322,7 +322,7 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 
 | 工具 | 说明 |
 | --- | --- |
-| `brain_context_for_task` | 根据自然语言任务生成 Context Pack；默认异步返回 job，轮询 `brain_index_job_status` 获取结果，避免客户端超时。 |
+| `brain_context_for_task` | AI 在计划或修改代码前应优先调用的统一入口；自动聚合图谱、约定、记忆、最近变更、共同变更文件和 blame 样本。默认异步返回 job。 |
 | `brain_status` | 面向 AI 客户端的一站式能力检查：本地知识层、sidecar 图谱、隐私开关。 |
 | `brain_sync_status` | 根据文件过滤快照判断项目是否需要重新索引。 |
 | `brain_sync_project` | sync-trigger 式索引入口；默认异步排队，也可以设置 `async_mode=false` 同步执行。 |
@@ -354,9 +354,9 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 
 | 工具 | 说明 |
 | --- | --- |
-| `get_blame` | 读取文件某段代码的 Git blame 信息。 |
-| `get_recent_changes` | 读取某个文件的最近提交记录。 |
-| `get_co_changed_files` | 查找历史上经常和某文件一起修改的文件。 |
+| `get_blame` | Context Pack 之后仍需调查具体代码行历史时使用。 |
+| `get_recent_changes` | Context Pack 之后仍需深挖单个文件提交历史时使用。 |
+| `get_co_changed_files` | Context Pack 之后仍需扩大单文件影响分析时使用。 |
 
 ## 配置项
 

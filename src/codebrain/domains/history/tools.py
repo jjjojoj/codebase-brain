@@ -32,7 +32,7 @@ def get_blame(
     end_line: int,
     repo_path: str = ".",
 ) -> list[dict[str, Any]]:
-    """Return blame metadata for a file line range."""
+    """Use for targeted line-level history after brain_context_for_task needs deeper blame."""
     return git_indexer.get_blame_info(repo_path, file_path, start_line, end_line)
 
 
@@ -43,7 +43,7 @@ def get_co_changed_files(
     max_commits: int = 50,
     async_mode: bool = True,
 ) -> dict[str, Any]:
-    """Return files commonly changed with file_path.
+    """Use for deeper single-file impact analysis after brain_context_for_task.
 
     Defaults to async_mode=True because Qoder has a ~30s hardcoded
     tool-call timeout that kills even fast git operations via MCP.
@@ -74,7 +74,7 @@ def get_recent_changes(
     limit: int = 10,
     repo_path: str = ".",
 ) -> list[dict[str, str]]:
-    """Return recent commits that touched file_path."""
+    """Use for deeper single-file history after brain_context_for_task."""
     return git_indexer.get_recent_changes(repo_path, file_path, limit)
 
 

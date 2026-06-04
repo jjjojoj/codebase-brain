@@ -42,5 +42,5 @@ def end_session(summary: str = "") -> dict[str, str]:
 
 
 def recall_context(task_description: str, top_k: int = 5) -> list[dict[str, Any]]:
-    """Recall past sessions similar to task_description."""
+    """Use after brain_context_for_task when deeper past-session recall is needed."""
     return logic.recall_context(_repo(), task_description, top_k)

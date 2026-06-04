@@ -29,6 +29,21 @@ def test_stable_mcp_surface_excludes_git_history_vector_tools() -> None:
     assert "search_history" not in tools
 
 
+def test_tool_descriptions_guide_ai_toward_composed_entrypoint() -> None:
+    from codebrain import server
+
+    tools = server.mcp._tool_manager._tools
+
+    assert "Use first before planning or editing code" in tools[
+        "brain_context_for_task"
+    ].description
+    assert "after brain_context_for_task" in tools["get_recent_changes"].description
+    assert "after brain_context_for_task" in tools["get_blame"].description
+    assert "after brain_context_for_task" in tools["get_co_changed_files"].description
+    assert "after brain_context_for_task" in tools["search_conventions"].description
+    assert "after brain_context_for_task" in tools["recall_context"].description
+
+
 def test_git_history_vector_tools_register_only_when_flag_enabled(monkeypatch) -> None:
     """Semantic git history tools should be an explicit feature-flag surface."""
     from codebrain import server

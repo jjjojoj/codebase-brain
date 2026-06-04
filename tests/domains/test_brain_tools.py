@@ -95,6 +95,9 @@ def test_brain_status_reports_graph_and_privacy(monkeypatch, container) -> None:
     ]
     assert result["resources"]["embedder_device"] == "cpu"
     assert result["resources"]["embedding_model_loaded"] is False
+    assert result["primary_tool"] == "brain_context_for_task"
+    assert "brain_context_for_task" in result["recommended_tools"]
+    assert "get_recent_changes" in result["deep_dive_tools"]
     assert "brain_index_project" in result["recommended_tools"]
 
 
@@ -317,3 +320,51 @@ def test_brain_context_for_task_defaults_to_async(monkeypatch, container) -> Non
 
     assert result["status"] == "queued"
     assert result["job"]["description"].startswith("context-pack")
+
+
+def test_brain_context_for_task_infers_files_for_git_context(
+    monkeypatch,
+    container,
+) -> None:
+    monkeypatch.setattr(brain_tools, "_make_repository", lambda: object())
+    monkeypatch.setattr(
+        brain_tools,
+        "_make_codebase_memory_adapter",
+        lambda settings: FakeGraphAdapter(),
+    )
+    monkeypatch.setattr(
+        brain_tools.graph_context,
+        "gather_graph_context",
+        lambda **kwargs: {
+            "status": "ready",
+            "related_symbols": [{"name": "login", "file_path": "src/auth/login.py"}],
+            "warnings": [],
+        },
+    )
+
+    def fake_local_context(**kwargs: Any) -> dict[str, Any]:
+        assert kwargs["files"] == ["src/auth/login.py"]
+        return {
+            "status": {"history": "ready"},
+            "context_files": kwargs["files"],
+            "recent_changes": [{"file_path": "src/auth/login.py"}],
+            "co_changed_files": [{"file": "tests/test_login.py"}],
+            "blame": [{"file_path": "src/auth/login.py", "line": 1}],
+            "warnings": [],
+        }
+
+    monkeypatch.setattr(
+        brain_tools.local_context,
+        "gather_local_context",
+        fake_local_context,
+    )
+
+    result = brain_tools.brain_context_for_task(
+        "fix login",
+        async_mode=False,
+    )
+
+    assert result["context_files"] == ["src/auth/login.py"]
+    assert result["recent_changes"]
+    assert result["co_changed_files"]
+    assert result["blame"]

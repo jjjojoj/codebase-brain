@@ -25,7 +25,7 @@ def search_conventions(
     module_filter: str | None = None,
     top_k: int = 5,
 ) -> list[dict[str, Any]]:
-    """Search indexed project conventions with local vector retrieval."""
+    """Use after brain_context_for_task when deeper convention lookup is needed."""
     return logic.search_conventions(query, _repo(), keywords, module_filter, top_k)
 
 
