@@ -6,6 +6,8 @@ import argparse
 import json
 import time
 
+from codebrain.config import Settings
+from codebrain.core.di import init_container
 from codebrain.domains.brain.tools import brain_context_for_task, brain_index_job_status
 from codebrain.domains.history.tools import get_co_changed_files
 
@@ -17,6 +19,8 @@ def main() -> None:
     parser.add_argument("--task", default="understand the authentication flow")
     parser.add_argument("--wait-seconds", type=float, default=10)
     args = parser.parse_args()
+
+    init_container(Settings())
 
     context = _submit(
         "context",
