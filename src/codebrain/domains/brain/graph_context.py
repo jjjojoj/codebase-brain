@@ -154,11 +154,19 @@ def _select_diverse(
     queries: list[str],
     top_k: int,
 ) -> list[dict[str, Any]]:
+    source_rows = [row for row in ranked if _has_source_location(row)]
+    if source_rows:
+        ranked = source_rows
     selected: list[dict[str, Any]] = []
     selected_keys: set[str] = set()
     for query in queries:
         match = next(
-            (row for row in ranked if str(row.get("query", "")).lower() == query.lower()),
+            (
+                row
+                for row in ranked
+                if str(row.get("query", "")).lower() == query.lower()
+                and _has_source_location(row)
+            ),
             None,
         )
         if match is not None:
@@ -181,6 +189,10 @@ def _append_unique(
     if key not in selected_keys:
         selected.append(row)
         selected_keys.add(key)
+
+
+def _has_source_location(row: dict[str, Any]) -> bool:
+    return bool(str(row.get("file_path", "")).strip())
 
 
 def _as_int(value: Any) -> int:

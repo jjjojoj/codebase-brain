@@ -131,3 +131,27 @@ def test_gather_graph_context_merges_and_ranks_all_symbol_queries() -> None:
         "authenticate",
         "login",
     ]
+
+
+def test_gather_graph_context_does_not_reserve_slots_for_nodes_without_source() -> None:
+    adapter = RankedAdapter()
+    original = adapter.search_graph
+
+    def search_graph(symbol: str, repo_path: str, limit: int) -> dict[str, Any]:
+        if symbol == "route":
+            return {
+                "ok": True,
+                "data": {"results": [{"name": "/auth/", "file_path": "", "label": "Route"}]},
+            }
+        return original(symbol, repo_path, limit)
+
+    adapter.search_graph = search_graph  # type: ignore[method-assign]
+
+    result = gather_graph_context(
+        task="auth",
+        symbols=["authenticate", "route"],
+        top_k=2,
+        adapter=adapter,
+    )
+
+    assert all(row["name"] != "/auth/" for row in result["related_symbols"])
