@@ -204,6 +204,32 @@ def test_brain_sync_project_does_not_record_failed_index(monkeypatch, tmp_path, 
     assert status["needs_sync"] is True
 
 
+def test_brain_sync_project_does_not_record_partial_index(
+    monkeypatch, tmp_path, container
+) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "app.py").write_text("print('ok')\n", encoding="utf-8")
+    monkeypatch.setattr(
+        brain_tools,
+        "_make_codebase_memory_adapter",
+        lambda settings: MissingGraphAdapter(),
+    )
+    monkeypatch.setattr(
+        brain_tools.convention_tools,
+        "index_convention_files",
+        lambda path: {"ok": True, "path": path, "indexed": 1, "skipped": 0, "errors": []},
+    )
+
+    result = brain_tools.brain_sync_project(str(tmp_path), async_mode=False)
+    status = brain_tools.brain_sync_status(str(tmp_path))
+
+    assert result["ok"] is False
+    assert result["status"] == "partial"
+    assert result["result"]["index"]["status"] == "partial"
+    assert result["result"]["state"]["ok"] is False
+    assert status["needs_sync"] is True
+
+
 def test_brain_index_job_status_lists_jobs() -> None:
     result = brain_tools.brain_index_job_status()
 

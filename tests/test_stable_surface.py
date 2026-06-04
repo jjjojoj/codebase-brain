@@ -6,6 +6,8 @@ import importlib
 
 import pytest
 
+from codebrain.config import Settings
+from codebrain.core.di import init_container
 from codebrain.domains.history import tools as history_tools
 
 
@@ -92,8 +94,21 @@ def test_git_history_vector_tools_register_only_when_flag_enabled(monkeypatch) -
 
 def test_git_history_vector_indexing_fails_closed() -> None:
     """Direct wrapper calls should also reject disabled history indexing."""
+    init_container(Settings(git_history_index_enabled=False))
     with pytest.raises(RuntimeError, match="Git history vector indexing is disabled"):
         history_tools.index_git_history(".", max_commits=1)
 
     with pytest.raises(RuntimeError, match="Git history vector indexing is disabled"):
         history_tools.search_history("auth")
+
+
+def test_git_history_vector_indexing_uses_container_settings(monkeypatch) -> None:
+    """Direct wrappers should honor explicitly initialized application settings."""
+    init_container(Settings(git_history_index_enabled=True))
+    monkeypatch.setattr(
+        history_tools.logic,
+        "search_history",
+        lambda repo, query, file_filter, top_k: [],
+    )
+
+    assert history_tools.search_history("auth") == []

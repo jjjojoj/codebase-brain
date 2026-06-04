@@ -159,7 +159,9 @@ def record_index_state(
         "snapshot": snapshot,
         "result": _compact_result(result),
     }
-    path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path = path.with_suffix(".json.tmp")
+    temp_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    temp_path.replace(path)
     return {"ok": True, "path": str(path), "updated_at": state["updated_at"]}
 
 

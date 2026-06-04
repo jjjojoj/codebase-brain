@@ -44,9 +44,10 @@ $projectName = Split-Path -Leaf $ProjectRoot
 $configPath = Join-Path $configDir "$projectName-mcp.json"
 
 Write-Host "== Prepare Python environment =="
-$runningCodebrain = Get-Process -Name "codebrain" -ErrorAction SilentlyContinue
-if ($runningCodebrain) {
-    throw "codebrain.exe is running. Close Qoder, Cursor, and other MCP clients before installing or updating."
+$conflictingProcesses = Get-Process -Name "codebrain", "codebase-memory-mcp" -ErrorAction SilentlyContinue
+if ($conflictingProcesses) {
+    $names = ($conflictingProcesses | Select-Object -ExpandProperty ProcessName -Unique) -join ", "
+    throw "$names is running. Close Qoder, Cursor, and other MCP clients before installing or updating."
 }
 
 if (-not (Test-Path -LiteralPath $python)) {
@@ -67,6 +68,13 @@ if (-not (Test-Path -LiteralPath $python)) {
 & $python -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 11) else 1)"
 if ($LASTEXITCODE -ne 0) {
     throw "The existing virtual environment is older than Python 3.11. Remove $venv and run setup again."
+}
+
+if (Test-Path -LiteralPath $dbPath) {
+    & $python -c "import sqlite3,sys; c=sqlite3.connect(sys.argv[1], timeout=1); c.execute('BEGIN IMMEDIATE'); c.rollback(); c.close()" $dbPath
+    if ($LASTEXITCODE -ne 0) {
+        throw "Codebrain database is locked: $dbPath. Close processes using this project before installing or updating."
+    }
 }
 
 & $python -m pip install -U pip

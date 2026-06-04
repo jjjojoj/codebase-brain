@@ -6,6 +6,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import shutil
 import sys
 from typing import Any
 from urllib.parse import urlparse
@@ -268,7 +269,16 @@ def _send(
 
 
 def _command_hint() -> str:
+    executable = Path(sys.executable).resolve()
+    sibling = executable.parent / ("codebrain.exe" if sys.platform == "win32" else "codebrain")
+    if sibling.exists():
+        return str(sibling)
+
+    installed = shutil.which("codebrain")
+    if installed:
+        return str(Path(installed).resolve())
+
     candidate = Path(sys.argv[0]).expanduser()
-    if candidate.exists():
+    if candidate.exists() and candidate.suffix.lower() not in {".py", ".pyw"}:
         return str(candidate.resolve())
     return "codebrain"

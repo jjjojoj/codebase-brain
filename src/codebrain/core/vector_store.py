@@ -13,6 +13,15 @@ from typing import Any
 from uuid import uuid4
 
 
+SQLITE_COLLECTIONS = frozenset({"conventions", "session_memory", "git_history"})
+
+
+def _validate_collection(collection: str) -> str:
+    if collection not in SQLITE_COLLECTIONS:
+        raise ValueError(f"Unknown vector collection: {collection}")
+    return collection
+
+
 class AbstractVectorStore(ABC):
     """Pluggable vector store backend."""
 
@@ -115,7 +124,7 @@ class SqliteVectorStore(AbstractVectorStore):
 
     def _init_collections(self) -> None:
         """Create the three domain collections if they don't exist."""
-        for coll in ("conventions", "session_memory", "git_history"):
+        for coll in SQLITE_COLLECTIONS:
             self._conn.execute(
                 f"""CREATE TABLE IF NOT EXISTS {coll} (
                     id TEXT PRIMARY KEY,
@@ -134,6 +143,7 @@ class SqliteVectorStore(AbstractVectorStore):
         ids: list[str],
         metadata: list[dict[str, Any]] | None = None,
     ) -> None:
+        collection = _validate_collection(collection)
         metadata = metadata or [{}] * len(ids)
         rows = [
             (rid, _serialize_vector(vec), json.dumps(meta))
@@ -152,6 +162,7 @@ class SqliteVectorStore(AbstractVectorStore):
         top_k: int = 10,
         filter_expr: str | None = None,
     ) -> list[dict[str, Any]]:
+        collection = _validate_collection(collection)
         rows = self._conn.execute(
             f"SELECT id, vector, meta FROM {collection}"
         ).fetchall()
@@ -169,6 +180,7 @@ class SqliteVectorStore(AbstractVectorStore):
         return [item for _, item in scored[:top_k]]
 
     def delete(self, collection: str, ids: list[str]) -> None:
+        collection = _validate_collection(collection)
         placeholders = ",".join("?" * len(ids))
         with self._conn:
             self._conn.execute(
@@ -176,6 +188,7 @@ class SqliteVectorStore(AbstractVectorStore):
             )
 
     def count(self, collection: str) -> int:
+        collection = _validate_collection(collection)
         row = self._conn.execute(f"SELECT COUNT(*) FROM {collection}").fetchone()
         return row[0] if row else 0
 
@@ -186,6 +199,7 @@ class SqliteVectorStore(AbstractVectorStore):
         output_fields: list[str] | None = None,
         limit: int = 1000,
     ) -> list[dict[str, Any]]:
+        collection = _validate_collection(collection)
         rows = self._conn.execute(
             f"SELECT id, meta FROM {collection} LIMIT ?", (limit,)
         ).fetchall()

@@ -105,7 +105,8 @@ def get_blame_info(
         ],
     )
     if not result.ok:
-        return []
+        detail = result.stderr.strip() or f"git blame exited with code {result.returncode}"
+        raise RuntimeError(detail)
     return _parse_blame_porcelain(result.stdout)
 
 
@@ -214,6 +215,8 @@ def _parse_blame_porcelain(output: str) -> list[dict[str, Any]]:
         if not raw_line:
             continue
         if raw_line.startswith("\t"):
+            if not current.get("commit_hash") or current_line < 1:
+                raise ValueError("Malformed git blame porcelain: source line without header")
             rows.append({
                 "line": current_line,
                 "author": current.get("author", ""),
@@ -226,13 +229,20 @@ def _parse_blame_porcelain(output: str) -> list[dict[str, Any]]:
 
         parts = raw_line.split()
         if len(parts) >= 4 and _looks_like_commit(parts[0]):
+            try:
+                current_line = int(parts[2])
+            except ValueError as exc:
+                raise ValueError(
+                    "Malformed git blame porcelain: invalid source line number"
+                ) from exc
             current = {"commit_hash": parts[0]}
-            current_line = int(parts[2])
             continue
 
         key, _, value = raw_line.partition(" ")
         if key in {"author", "author-time", "summary"}:
             current[key] = value
+    if output.strip() and not rows:
+        raise ValueError("Malformed git blame porcelain: no source records")
     return rows
 
 

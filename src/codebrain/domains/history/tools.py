@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from codebrain.config import Settings
 from codebrain.core.di import get_container
 from codebrain.core.repository import Repository
 from codebrain.domains.brain import jobs as brain_jobs
@@ -113,7 +112,7 @@ def index_git_history(
 
 
 def _require_git_history_index_enabled() -> None:
-    settings = Settings()
+    settings = get_container().settings
     if not settings.git_history_index_enabled:
         raise RuntimeError(
             "Git history vector indexing is disabled in the stable build. "

@@ -34,6 +34,18 @@ def test_completed_job_reports_execution_time() -> None:
     assert status["execution_seconds"] >= 0
 
 
+def test_shutdown_jobs_marks_long_running_job_interrupted() -> None:
+    release = Event()
+    job = jobs.start_job("wait", lambda: _wait(release))
+
+    jobs.shutdown_jobs(wait_seconds=0)
+    status = jobs.get_job(job["id"])
+    release.set()
+
+    assert status["status"] == "interrupted"
+    assert status["error"] == "server shutting down"
+
+
 def _wait(release: Event) -> dict[str, bool]:
     release.wait(timeout=2)
     return {"ok": True}

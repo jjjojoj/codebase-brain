@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from threading import Lock, Thread
+import atexit
 import time
 from typing import Any, Callable
 from uuid import uuid4
@@ -90,8 +91,25 @@ def list_jobs() -> dict[str, Any]:
 def clear_jobs_for_tests() -> None:
     """Clear job state for isolated tests."""
     with _lock:
+        threads = list(_threads.values())
+    for thread in threads:
+        thread.join(timeout=3)
+    with _lock:
         _jobs.clear()
         _threads.clear()
+
+
+def shutdown_jobs(wait_seconds: float = 2.0) -> None:
+    """Give active daemon jobs a bounded opportunity to finish during shutdown."""
+    deadline = time.monotonic() + max(0.0, wait_seconds)
+    with _lock:
+        threads = list(_threads.items())
+    for job_id, thread in threads:
+        remaining = deadline - time.monotonic()
+        if remaining > 0:
+            thread.join(timeout=remaining)
+        if thread.is_alive():
+            _update_job(job_id, status="interrupted", error="server shutting down")
 
 
 def _run_job(job_id: str, target: JobTarget) -> None:
@@ -150,3 +168,6 @@ def _job_age_seconds(job_id: str) -> float:
     with _lock:
         created_at = _jobs[job_id].created_at
     return _elapsed_seconds(created_at)
+
+
+atexit.register(shutdown_jobs)

@@ -29,3 +29,13 @@ def test_sync_status_changes_after_recording_state(tmp_path) -> None:
     assert first["needs_sync"] is True
     assert second["needs_sync"] is False
     assert second["reason"] == "fresh"
+
+
+def test_record_index_state_replaces_file_atomically(tmp_path) -> None:
+    snapshot = indexing.snapshot_project(str(tmp_path))
+
+    result = indexing.record_index_state(str(tmp_path), snapshot, {"ok": True})
+
+    assert result["ok"] is True
+    assert indexing.load_index_state(str(tmp_path))["ok"] is True
+    assert not indexing.index_state_path(str(tmp_path)).with_suffix(".json.tmp").exists()

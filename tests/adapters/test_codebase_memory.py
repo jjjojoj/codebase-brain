@@ -92,6 +92,19 @@ def test_call_escapes_unicode_paths_for_windows_command_line(monkeypatch) -> Non
     assert result.ok is True
 
 
+def test_call_preserves_long_windows_path(monkeypatch) -> None:
+    long_path = "D:\\" + "\\".join(["deep"] * 70) + "\\项目"
+
+    def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        assert json.loads(command[3])["repo_path"] == long_path
+        return subprocess.CompletedProcess(command, 0, '{"project":"demo"}', "")
+
+    monkeypatch.setattr(codebase_memory, "_resolve_binary", lambda binary: r"D:\cb\sidecar.exe")
+    adapter = CodebaseMemoryAdapter(binary="cbm", runner=fake_runner)
+
+    assert adapter.call("index_repository", {"repo_path": long_path}).ok is True
+
+
 def test_nonzero_exit_returns_error_text(monkeypatch) -> None:
     def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
         return subprocess.CompletedProcess(command, 2, "bad args", "failed")

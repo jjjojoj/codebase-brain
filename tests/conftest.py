@@ -13,9 +13,18 @@ from codebrain.core.di import Container, init_container
 from codebrain.core.embedder import Embedder
 from codebrain.core.repository import Repository
 from codebrain.core.vector_store import SqliteVectorStore
+from codebrain.domains.brain import jobs
 
 
 # ----------------------------------------------------------------- Fixtures
+
+
+@pytest.fixture(autouse=True)
+def isolate_background_jobs() -> None:
+    """Prevent process-global async jobs from leaking between tests."""
+    jobs.clear_jobs_for_tests()
+    yield
+    jobs.clear_jobs_for_tests()
 
 
 @pytest.fixture

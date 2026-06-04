@@ -178,12 +178,18 @@ def _safe_blame(
             if not target.is_file():
                 continue
             with target.open("r", encoding="utf-8", errors="replace") as source:
-                end_line = sum(1 for _, _line in zip(range(40), source))
-            if end_line == 0:
+                line_count = sum(1 for _line in source)
+            if line_count == 0:
                 continue
-            rows = git_indexer.get_blame_info(repo_path, file_path, 1, end_line)
             seen_commits: set[str] = set()
-            for row in rows:
+            sampled_rows: list[list[dict[str, Any]]] = []
+            for start_line, end_line in _blame_ranges(line_count):
+                sampled_rows.append(
+                    git_indexer.get_blame_info(
+                        repo_path, file_path, start_line, end_line
+                    )
+                )
+            for row in _round_robin(sampled_rows):
                 commit_hash = str(row.get("commit_hash", ""))
                 if commit_hash in seen_commits:
                     continue
@@ -194,3 +200,32 @@ def _safe_blame(
         except Exception as exc:
             warnings.append(f"blame unavailable for {file_path}: {exc}")
     return results
+
+
+def _round_robin(groups: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """Interleave sampled regions so the beginning cannot consume the result budget."""
+    results: list[dict[str, Any]] = []
+    max_length = max((len(group) for group in groups), default=0)
+    for index in range(max_length):
+        for group in groups:
+            if index < len(group):
+                results.append(group[index])
+    return results
+
+
+def _blame_ranges(line_count: int, budget: int = 40) -> list[tuple[int, int]]:
+    """Sample a file across its beginning, middle, and end within a line budget."""
+    if line_count <= 0:
+        return []
+    if line_count <= budget:
+        return [(1, line_count)]
+
+    first_size = budget // 3 + budget % 3
+    middle_size = budget // 3
+    last_size = budget // 3
+    middle_start = max(first_size + 1, (line_count - middle_size) // 2 + 1)
+    return [
+        (1, first_size),
+        (middle_start, middle_start + middle_size - 1),
+        (line_count - last_size + 1, line_count),
+    ]

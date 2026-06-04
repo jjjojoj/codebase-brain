@@ -343,14 +343,15 @@ def _run_sync_project(
         graph_mode=graph_mode,
         graph_persistence=graph_persistence,
     )
+    complete = result.get("status") == "ok"
     state = (
         indexing.record_index_state(repo_path, snapshot, result)
-        if result.get("ok") is True
-        else {"ok": False, "error": "index did not complete; state was not updated"}
+        if complete
+        else {"ok": False, "error": "index was partial or failed; state was not updated"}
     )
     return {
-        "ok": result.get("ok") is True,
-        "status": "synced" if result.get("ok") else "partial",
+        "ok": complete,
+        "status": "synced" if complete else "partial",
         "repo_path": repo_path,
         "snapshot": snapshot,
         "index": result,

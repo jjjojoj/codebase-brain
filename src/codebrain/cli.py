@@ -72,8 +72,8 @@ def info() -> None:
         try:
             n = vs.count(coll)
             typer.echo(f"  {coll}: {n} entries")
-        except Exception:
-            pass
+        except Exception as exc:
+            typer.echo(f"  {coll}: unavailable ({exc})", err=True)
 
 
 if __name__ == "__main__":

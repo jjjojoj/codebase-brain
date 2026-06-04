@@ -96,3 +96,23 @@ def test_gather_local_context_degrades_without_repository() -> None:
     assert result["critical_conventions"] == []
     assert result["similar_sessions"] == []
     assert "repository unavailable for local vector context" in result["warnings"]
+
+
+def test_blame_ranges_sample_beginning_middle_and_end() -> None:
+    assert local_context._blame_ranges(100) == [(1, 14), (44, 56), (88, 100)]
+    assert sum(end - start + 1 for start, end in local_context._blame_ranges(100)) == 40
+
+
+def test_round_robin_preserves_results_from_deep_file_regions() -> None:
+    groups = [
+        [{"commit_hash": "start-1"}, {"commit_hash": "start-2"}],
+        [{"commit_hash": "middle"}],
+        [{"commit_hash": "end"}],
+    ]
+
+    assert [row["commit_hash"] for row in local_context._round_robin(groups)] == [
+        "start-1",
+        "middle",
+        "end",
+        "start-2",
+    ]

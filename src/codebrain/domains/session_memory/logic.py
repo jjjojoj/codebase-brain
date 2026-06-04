@@ -104,7 +104,6 @@ def record_file_change(
 def end_session(repo: Repository, summary: str = "") -> dict[str, str]:
     global _current_session
     current = _require_current_session()
-    compiled_summary = _compile_summary(current, summary.strip())
     record_id = repo.insert_session(
         task=current.task,
         files_modified=_serialize(current.files),
@@ -155,19 +154,6 @@ def _session_result(row: dict[str, Any]) -> dict[str, Any]:
         "created_at": row.get("created_at", ""),
         "relevance_score": row.get("similarity"),
     }
-
-
-def _compile_summary(session: SessionState, summary: str) -> str:
-    sections = [
-        f"Task: {session.task}",
-        f"Started: {session.start_time}",
-        f"Files changed: {_serialize(session.files)}",
-        f"Decisions: {_serialize(session.decisions)}",
-        f"Problems solved: {_serialize(session.problems)}",
-    ]
-    if summary:
-        sections.append(f"Summary: {summary}")
-    return "\n\n".join(sections)
 
 
 def _build_suggestion(related_sessions: list[dict[str, Any]]) -> str:

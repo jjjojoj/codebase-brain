@@ -59,6 +59,21 @@ class TestSqliteVectorStore:
         assert len(rid) > 0
         assert store.count("git_history") == 1
 
+    @pytest.mark.parametrize("operation", ["insert", "search", "delete", "count", "query"])
+    def test_rejects_unknown_collection(
+        self, store: SqliteVectorStore, operation: str
+    ) -> None:
+        args = {
+            "insert": ("bad; DROP TABLE conventions", [[1.0, 0.0, 0.0, 0.0]], ["id"]),
+            "search": ("bad; DROP TABLE conventions", [1.0, 0.0, 0.0, 0.0]),
+            "delete": ("bad; DROP TABLE conventions", ["id"]),
+            "count": ("bad; DROP TABLE conventions",),
+            "query": ("bad; DROP TABLE conventions",),
+        }
+
+        with pytest.raises(ValueError, match="Unknown vector collection"):
+            getattr(store, operation)(*args[operation])
+
 
 class TestCosineSimilarity:
     def test_identical_vectors(self) -> None:
