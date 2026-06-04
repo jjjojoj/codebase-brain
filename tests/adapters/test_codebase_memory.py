@@ -39,6 +39,27 @@ def test_call_parses_mcp_text_envelope(monkeypatch) -> None:
     assert result["data"]["results"][0]["name"] == "OrderHandler"
 
 
+def test_search_graph_uses_short_search_timeout(monkeypatch) -> None:
+    observed: list[int] = []
+
+    def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        observed.append(timeout_sec)
+        return subprocess.CompletedProcess(command, 0, '{"results":[]}', "")
+
+    monkeypatch.setattr(codebase_memory, "_resolve_binary", lambda binary: "/bin/cbm")
+    adapter = CodebaseMemoryAdapter(
+        binary="cbm",
+        timeout_sec=120,
+        search_timeout_sec=15,
+        runner=fake_runner,
+    )
+
+    adapter.search_graph("OrderHandler", ".")
+    adapter.index_repository(".")
+
+    assert observed == [15, 120]
+
+
 def test_index_repository_passes_sidecar_mode(monkeypatch) -> None:
     def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
         args = json.loads(command[3])

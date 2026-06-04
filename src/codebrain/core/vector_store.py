@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import struct
+import time
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from pathlib import Path
@@ -93,9 +94,24 @@ class SqliteVectorStore(AbstractVectorStore):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.dimension = dimension
-        self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn = sqlite3.connect(
+            str(self.db_path),
+            check_same_thread=False,
+            timeout=30,
+        )
+        self._conn.execute("PRAGMA busy_timeout=30000")
+        self._enable_wal()
         self._init_collections()
+
+    def _enable_wal(self) -> None:
+        for attempt in range(5):
+            try:
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                return
+            except sqlite3.OperationalError as exc:
+                if "locked" not in str(exc).lower() or attempt == 4:
+                    raise
+                time.sleep(0.05 * (attempt + 1))
 
     def _init_collections(self) -> None:
         """Create the three domain collections if they don't exist."""

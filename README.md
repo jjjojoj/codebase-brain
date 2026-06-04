@@ -375,6 +375,7 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 | `CODEBRAIN_VECTOR_STORE_BACKEND` | `sqlite` | 可选 `sqlite` 或 `milvus`；不显式设置时保持本地 SQLite。 |
 | `CODEBRAIN_CODEBASE_MEMORY_BINARY` | `codebase-memory-mcp` | 可选图谱 sidecar 二进制路径。 |
 | `CODEBRAIN_CODEBASE_MEMORY_TIMEOUT_SEC` | `120` | 调用图谱 sidecar 的超时时间。 |
+| `CODEBRAIN_CODEBASE_MEMORY_SEARCH_TIMEOUT_SEC` | `15` | 图谱搜索和调用链查询的短超时；避免并发查询累积成长时间等待。 |
 | `CODEBRAIN_INDEX_MAX_FILE_SIZE_MB` | `5` | 文件过滤快照中纳入索引判断的单文件大小上限。 |
 | `CODEBRAIN_MILVUS_URI` | `.codebrain/milvus_lite.db` | Milvus Lite 本地文件路径，或远程 Milvus / Zilliz URI。 |
 | `CODEBRAIN_MILVUS_TOKEN` | 空 | 远程 Milvus / Zilliz 需要 token 时再设置。 |

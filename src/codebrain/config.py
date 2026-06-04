@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     # External code graph adapter
     codebase_memory_binary: str = "codebase-memory-mcp"
     codebase_memory_timeout_sec: int = 120
+    codebase_memory_search_timeout_sec: int = 15
 
     # Project
     default_project: str = ""

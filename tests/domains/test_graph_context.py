@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+import time
 from typing import Any
 
+from codebrain.domains.brain import graph_context
 from codebrain.domains.brain.graph_context import gather_graph_context
 
 
@@ -158,3 +162,67 @@ def test_gather_graph_context_does_not_reserve_slots_for_nodes_without_source() 
     )
 
     assert all(row["name"] != "/auth/" for row in result["related_symbols"])
+
+
+def test_gather_graph_context_serializes_same_repository_queries() -> None:
+    class ConcurrentAdapter(RecordingAdapter):
+        def __init__(self) -> None:
+            super().__init__()
+            self.active = 0
+            self.max_active = 0
+            self.lock = Lock()
+
+        def search_graph(self, symbol: str, repo_path: str, limit: int) -> dict[str, Any]:
+            with self.lock:
+                self.active += 1
+                self.max_active = max(self.max_active, self.active)
+            time.sleep(0.01)
+            with self.lock:
+                self.active -= 1
+            return {
+                "ok": True,
+                "data": {
+                    "results": [
+                        {"name": symbol, "file_path": f"src/{symbol}.py", "label": "Function"}
+                    ]
+                },
+            }
+
+    adapter = ConcurrentAdapter()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        results = list(
+            executor.map(
+                lambda task: gather_graph_context(
+                    task=task,
+                    symbols=["auth"],
+                    repo_path="/same/repo",
+                    adapter=adapter,
+                ),
+                ["one", "two"],
+            )
+        )
+
+    assert adapter.max_active == 1
+    assert all(result["status"] == "ready" for result in results)
+    assert any(result["timings"]["lock_wait_seconds"] > 0 for result in results)
+
+
+def test_gather_graph_context_stops_after_stage_budget(monkeypatch) -> None:
+    class SlowAdapter(RecordingAdapter):
+        def search_graph(self, symbol: str, repo_path: str, limit: int) -> dict[str, Any]:
+            time.sleep(0.01)
+            self.queries.append(symbol)
+            return {"ok": False, "status": "timeout"}
+
+    monkeypatch.setattr(graph_context, "_GRAPH_STAGE_BUDGET_SECONDS", 0.005)
+    adapter = SlowAdapter()
+
+    result = gather_graph_context(
+        task="auth",
+        symbols=["one", "two"],
+        repo_path="/budget/repo",
+        adapter=adapter,
+    )
+
+    assert adapter.queries == ["one"]
+    assert "budget exhausted" in " ".join(result["warnings"])

@@ -1,5 +1,7 @@
 """Tests for the vector store."""
 
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 
 from codebrain.core.vector_store import SqliteVectorStore, _cosine_similarity
@@ -70,3 +72,12 @@ class TestCosineSimilarity:
 
     def test_zero_vector(self) -> None:
         assert _cosine_similarity([0.0, 0.0], [1.0, 0.0]) == 0.0
+
+
+def test_concurrent_store_initialization_avoids_database_locked(temp_db_path: str) -> None:
+    def create_and_close(_: int) -> None:
+        store = SqliteVectorStore(temp_db_path, dimension=4)
+        store.close()
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        list(executor.map(create_and_close, range(2)))

@@ -7,6 +7,7 @@ client to know which low-level convention, memory, git, or graph tool to call.
 from __future__ import annotations
 
 from pathlib import Path
+import time
 from typing import Any
 
 from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
@@ -67,7 +68,9 @@ def _build_context_pack(
     top_k: int,
 ) -> dict[str, Any]:
     """Build one Context Pack after inputs have been validated."""
+    started = time.perf_counter()
     container = get_container()
+    graph_started = time.perf_counter()
     graph = graph_context.gather_graph_context(
         task=task,
         symbols=symbols,
@@ -75,7 +78,9 @@ def _build_context_pack(
         top_k=top_k,
         adapter=_make_codebase_memory_adapter(container.settings),
     )
+    graph_seconds = round(time.perf_counter() - graph_started, 3)
     context_files = local_context.select_context_files(files, graph, limit=min(top_k, 3))
+    local_started = time.perf_counter()
     local = local_context.gather_local_context(
         task=task,
         files=context_files,
@@ -83,7 +88,15 @@ def _build_context_pack(
         top_k=top_k,
         repository=_make_repository(),
     )
-    return context_pack.assemble_context_pack(task=task, local=local, graph=graph)
+    result = context_pack.assemble_context_pack(task=task, local=local, graph=graph)
+    result["timings"] = {
+        "graph_seconds": graph_seconds,
+        "graph_context": graph.get("timings", {}),
+        "local_context_seconds": round(time.perf_counter() - local_started, 3),
+        "local_context": local.get("timings", {}),
+        "total_seconds": round(time.perf_counter() - started, 3),
+    }
+    return result
 
 
 def brain_status(repo_path: str = ".") -> dict[str, Any]:
@@ -297,6 +310,7 @@ def _make_codebase_memory_adapter(settings: Settings) -> CodebaseMemoryAdapter:
     return CodebaseMemoryAdapter(
         binary=settings.codebase_memory_binary,
         timeout_sec=settings.codebase_memory_timeout_sec,
+        search_timeout_sec=settings.codebase_memory_search_timeout_sec,
     )
 
 

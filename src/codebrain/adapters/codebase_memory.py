@@ -54,10 +54,12 @@ class CodebaseMemoryAdapter:
         self,
         binary: str = "codebase-memory-mcp",
         timeout_sec: int = 120,
+        search_timeout_sec: int = 15,
         runner: Runner | None = None,
     ) -> None:
         self.binary = binary
         self.timeout_sec = timeout_sec
+        self.search_timeout_sec = min(search_timeout_sec, timeout_sec)
         self._runner = runner or _run_subprocess
 
     def status(self) -> dict[str, Any]:
@@ -69,6 +71,7 @@ class CodebaseMemoryAdapter:
             "binary": self.binary,
             "resolved_binary": resolved,
             "timeout_sec": self.timeout_sec,
+            "search_timeout_sec": self.search_timeout_sec,
             "tools": [
                 "index_repository",
                 "search_graph",
@@ -103,7 +106,7 @@ class CodebaseMemoryAdapter:
             "name_pattern": symbol,
             "limit": limit,
         }
-        return self.call("search_graph", args).as_dict()
+        return self.call("search_graph", args, timeout_sec=self.search_timeout_sec).as_dict()
 
     def trace_call_path(
         self,
@@ -118,9 +121,15 @@ class CodebaseMemoryAdapter:
             "direction": "both",
             "depth": depth,
         }
-        return self.call("trace_call_path", args).as_dict()
+        return self.call("trace_call_path", args, timeout_sec=self.search_timeout_sec).as_dict()
 
-    def call(self, tool: str, args: dict[str, Any]) -> SidecarResult:
+    def call(
+        self,
+        tool: str,
+        args: dict[str, Any],
+        *,
+        timeout_sec: int | None = None,
+    ) -> SidecarResult:
         """Call one codebase-memory-mcp CLI tool and normalize output."""
         resolved_binary = _resolve_binary(self.binary)
         command = [
@@ -143,15 +152,16 @@ class CodebaseMemoryAdapter:
                 ),
             )
 
+        effective_timeout = timeout_sec or self.timeout_sec
         try:
-            completed = self._runner(command, self.timeout_sec)
+            completed = self._runner(command, effective_timeout)
         except subprocess.TimeoutExpired as exc:
             return SidecarResult(
                 ok=False,
                 status="timeout",
                 tool=tool,
                 command=command,
-                error=f"sidecar call timed out after {self.timeout_sec}s: {exc}",
+                error=f"sidecar call timed out after {effective_timeout}s: {exc}",
             )
         except OSError as exc:
             return SidecarResult(

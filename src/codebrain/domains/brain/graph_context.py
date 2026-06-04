@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+from threading import Lock
+import time
 from typing import Any
 
 from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
@@ -38,6 +40,11 @@ _TASK_TERM_MAPPINGS = {
     "登录": ["login"],
 }
 
+_GRAPH_LOCK_WAIT_SECONDS = 30
+_GRAPH_STAGE_BUDGET_SECONDS = 45
+_repo_locks: dict[str, Lock] = {}
+_repo_locks_guard = Lock()
+
 
 def gather_graph_context(
     *,
@@ -63,23 +70,88 @@ def gather_graph_context(
             "warnings": ["graph sidecar not available"],
         }
 
+    lock = _repo_lock(repo_path)
+    wait_started = time.perf_counter()
+    acquired = lock.acquire(timeout=_GRAPH_LOCK_WAIT_SECONDS)
+    lock_wait_seconds = round(time.perf_counter() - wait_started, 3)
+    if not acquired:
+        return {
+            "status": "busy",
+            "related_symbols": [],
+            "warnings": [
+                f"graph context busy for {repo_path}; skipped after "
+                f"{lock_wait_seconds}s lock wait"
+            ],
+            "timings": {"lock_wait_seconds": lock_wait_seconds, "query_seconds": 0.0},
+        }
+
+    try:
+        return _gather_locked(
+            graph=graph,
+            task=task,
+            symbols=symbols,
+            repo_path=repo_path,
+            top_k=top_k,
+            lock_wait_seconds=lock_wait_seconds,
+        )
+    finally:
+        lock.release()
+
+
+def _gather_locked(
+    *,
+    graph: CodebaseMemoryAdapter,
+    task: str,
+    symbols: list[str] | None,
+    repo_path: str,
+    top_k: int,
+    lock_wait_seconds: float,
+) -> dict[str, Any]:
     queries = _graph_queries(task, symbols)
     related_symbols: list[dict[str, Any]] = []
     warnings: list[str] = []
+    query_timings: list[dict[str, Any]] = []
     candidate_limit = min(max(top_k * 5, 25), 50)
+    query_started = time.perf_counter()
     for query in queries:
+        elapsed = time.perf_counter() - query_started
+        if elapsed >= _GRAPH_STAGE_BUDGET_SECONDS:
+            warnings.append(
+                f"graph context budget exhausted after {round(elapsed, 3)}s; "
+                "remaining queries skipped"
+            )
+            break
+        item_started = time.perf_counter()
         result = graph.search_graph(symbol=query, repo_path=repo_path, limit=candidate_limit)
+        query_timings.append({
+            "query": query,
+            "status": result.get("status", "unknown"),
+            "seconds": round(time.perf_counter() - item_started, 3),
+        })
         if result.get("ok") is True:
             related_symbols.extend(_extract_symbols(query, result))
         else:
-            warnings.append(f"graph search unavailable for {query}")
+            status = result.get("status", "error")
+            warnings.append(f"graph search {status} for {query}")
+    query_seconds = round(time.perf_counter() - query_started, 3)
     related_symbols = _select_diverse(_rank_and_dedupe(related_symbols), queries, top_k)
 
     return {
         "status": "ready" if related_symbols else "empty",
         "related_symbols": related_symbols[:top_k],
         "warnings": warnings,
+        "timings": {
+            "lock_wait_seconds": lock_wait_seconds,
+            "query_seconds": query_seconds,
+            "queries": query_timings,
+        },
     }
+
+
+def _repo_lock(repo_path: str) -> Lock:
+    key = str(repo_path).lower()
+    with _repo_locks_guard:
+        return _repo_locks.setdefault(key, Lock())
 
 
 def _graph_queries(task: str, symbols: list[str] | None) -> list[str]:

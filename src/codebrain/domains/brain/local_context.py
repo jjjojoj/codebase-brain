@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import time
 from typing import Any
 
 from codebrain.core.repository import Repository
@@ -23,14 +24,25 @@ def gather_local_context(
     warnings: list[str] = []
     if repository is None:
         warnings.append("repository unavailable for local vector context")
+    started = time.perf_counter()
+    conventions_started = time.perf_counter()
     conventions = _safe_search_conventions(repository, task, min(top_k, 3), warnings)
+    conventions_seconds = round(time.perf_counter() - conventions_started, 3)
     if repository is not None and not conventions:
         warnings.append("no matching conventions found; index .codebrain/conventions if needed")
+    sessions_started = time.perf_counter()
     sessions = _safe_recall_sessions(repository, task, min(top_k, 3), warnings)
+    sessions_seconds = round(time.perf_counter() - sessions_started, 3)
     context_files = files or []
+    recent_started = time.perf_counter()
     recent_changes = _safe_recent_changes(context_files, repo_path, min(top_k, 5), warnings)
+    recent_seconds = round(time.perf_counter() - recent_started, 3)
+    co_changed_started = time.perf_counter()
     co_changed_files = _safe_co_changed(context_files, repo_path, min(top_k, 5), warnings)
+    co_changed_seconds = round(time.perf_counter() - co_changed_started, 3)
+    blame_started = time.perf_counter()
     blame = _safe_blame(context_files, repo_path, min(top_k, 5), warnings)
+    blame_seconds = round(time.perf_counter() - blame_started, 3)
     return {
         "status": {
             "conventions": "ready" if conventions else "empty",
@@ -44,6 +56,14 @@ def gather_local_context(
         "blame": blame,
         "similar_sessions": sessions,
         "warnings": warnings,
+        "timings": {
+            "conventions_seconds": conventions_seconds,
+            "sessions_seconds": sessions_seconds,
+            "recent_changes_seconds": recent_seconds,
+            "co_changed_seconds": co_changed_seconds,
+            "blame_seconds": blame_seconds,
+            "total_seconds": round(time.perf_counter() - started, 3),
+        },
     }
 
 

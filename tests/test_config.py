@@ -11,6 +11,7 @@ def test_settings_defaults(monkeypatch) -> None:
     for name in (
         "CODEBRAIN_EMBEDDER_PROVIDER",
         "CODEBRAIN_EMBEDDER_DEVICE",
+        "CODEBRAIN_CODEBASE_MEMORY_SEARCH_TIMEOUT_SEC",
         "CODEBRAIN_VECTOR_STORE_BACKEND",
         "CODEBRAIN_CONVENTIONS_ENABLED",
         "CODEBRAIN_SESSION_MEMORY_ENABLED",
@@ -25,6 +26,7 @@ def test_settings_defaults(monkeypatch) -> None:
     s = Settings(_env_file=None)
     assert s.embedder_provider == "sentence-transformers"
     assert s.embedder_device == "cpu"
+    assert s.codebase_memory_search_timeout_sec == 15
     assert s.vector_store_backend == "sqlite"
     assert s.conventions_enabled is True
     assert s.session_memory_enabled is True
