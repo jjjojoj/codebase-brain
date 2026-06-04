@@ -103,6 +103,7 @@ def brain_status(repo_path: str = ".") -> dict[str, Any]:
                 "collection_prefix": settings.milvus_collection_prefix,
             },
         },
+        "resources": container.resource_status(),
         "privacy": {
             "embedding_policy": "local_only",
             "supported_embedding_providers": ["sentence-transformers", "ollama"],

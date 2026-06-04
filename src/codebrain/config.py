@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     # Embedder
     embedder_provider: str = "sentence-transformers"
     embedder_model: str = "all-MiniLM-L6-v2"
+    embedder_device: str = "cpu"
     ollama_url: str = "http://localhost:11434"
 
     # Vector store

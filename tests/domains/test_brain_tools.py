@@ -93,6 +93,8 @@ def test_brain_status_reports_graph_and_privacy(monkeypatch, container) -> None:
         "sentence-transformers",
         "ollama",
     ]
+    assert result["resources"]["embedder_device"] == "cpu"
+    assert result["resources"]["embedding_model_loaded"] is False
     assert "brain_index_project" in result["recommended_tools"]
 
 

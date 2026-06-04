@@ -190,6 +190,7 @@ git switch --detach <已验证提交>
 | 调用约 30 秒后失败 | 检查 Qoder 生效配置的 timeout；长任务使用默认异步模式 |
 | 图谱失败但其它工具正常 | 检查 sidecar 路径和版本；中文仓库路径在 sidecar `v0.7.0` 下会降级 |
 | 第一次语义检索很慢 | 本地模型首次下载或冷启动；部署验收时提前预热 |
+| 显存占用过高 | 默认保持 `CODEBRAIN_EMBEDDER_DEVICE=cpu`；仅在明确需要时设置 `cuda` 或 `auto` |
 | job 一直找不到 | MCP 进程可能已重启；重新发起异步任务 |
 | 数据写错项目 | 检查 `CODEBRAIN_DB_PATH` 和 `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` 绝对路径 |
 

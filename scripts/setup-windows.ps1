@@ -4,6 +4,7 @@ param(
     [string]$CodebrainRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$SidecarPath = "",
     [string]$EmbedderModel = "paraphrase-multilingual-MiniLM-L12-v2",
+    [string]$EmbedderDevice = "cpu",
     [switch]$InstallDev
 )
 
@@ -129,6 +130,7 @@ $server = [ordered]@{
         CODEBRAIN_DEFAULT_CONVENTIONS_PATH = $conventionsPath
         CODEBRAIN_CODEBASE_MEMORY_BINARY = $sidecar
         CODEBRAIN_EMBEDDER_MODEL = $EmbedderModel
+        CODEBRAIN_EMBEDDER_DEVICE = $EmbedderDevice
     }
 }
 $config = [ordered]@{
@@ -145,6 +147,7 @@ $env:CODEBRAIN_DB_PATH = $dbPath
 $env:CODEBRAIN_DEFAULT_CONVENTIONS_PATH = $conventionsPath
 $env:CODEBRAIN_CODEBASE_MEMORY_BINARY = $sidecar
 $env:CODEBRAIN_EMBEDDER_MODEL = $EmbedderModel
+$env:CODEBRAIN_EMBEDDER_DEVICE = $EmbedderDevice
 & $codebrain info
 if ($LASTEXITCODE -ne 0) {
     throw "codebrain info failed."

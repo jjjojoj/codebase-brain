@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from threading import Thread
+import time
+
 from codebrain.config import Settings
 from codebrain.infrastructure.embedder.sentence_transformer import SentenceTransformerEmbedder
 
@@ -15,6 +18,8 @@ def test_constructor_and_dimension_do_not_load_model(monkeypatch) -> None:
     embedder = SentenceTransformerEmbedder(Settings())
 
     assert embedder.dimension() == SentenceTransformerEmbedder.DEFAULT_DIMENSION
+    assert embedder.device == "cpu"
+    assert embedder.model_loaded is False
 
 
 def test_empty_batch_does_not_load_model(monkeypatch) -> None:
@@ -52,6 +57,35 @@ def test_embed_loads_model_on_first_use(monkeypatch) -> None:
     embedder = SentenceTransformerEmbedder(Settings())
 
     assert embedder.embed("hello") == [0.1, 0.2, 0.3]
+
+
+def test_concurrent_first_use_loads_model_once(monkeypatch) -> None:
+    loads = 0
+
+    class Encoded:
+        def tolist(self) -> list[list[float]]:
+            return [[0.1]]
+
+    class Model:
+        def encode(self, texts, **kwargs) -> Encoded:
+            return Encoded()
+
+    def load_model(self: SentenceTransformerEmbedder) -> None:
+        nonlocal loads
+        loads += 1
+        time.sleep(0.01)
+        self._model = Model()
+
+    monkeypatch.setattr(SentenceTransformerEmbedder, "_load_model", load_model)
+    embedder = SentenceTransformerEmbedder(Settings())
+    threads = [Thread(target=embedder.embed, args=("hello",)) for _ in range(2)]
+
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert loads == 1
 
 
 def test_dimension_uses_sentence_transformers_5_api() -> None:

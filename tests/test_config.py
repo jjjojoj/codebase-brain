@@ -10,6 +10,7 @@ def test_settings_defaults(monkeypatch) -> None:
     """Settings should have sensible defaults."""
     for name in (
         "CODEBRAIN_EMBEDDER_PROVIDER",
+        "CODEBRAIN_EMBEDDER_DEVICE",
         "CODEBRAIN_VECTOR_STORE_BACKEND",
         "CODEBRAIN_CONVENTIONS_ENABLED",
         "CODEBRAIN_SESSION_MEMORY_ENABLED",
@@ -23,6 +24,7 @@ def test_settings_defaults(monkeypatch) -> None:
 
     s = Settings(_env_file=None)
     assert s.embedder_provider == "sentence-transformers"
+    assert s.embedder_device == "cpu"
     assert s.vector_store_backend == "sqlite"
     assert s.conventions_enabled is True
     assert s.session_memory_enabled is True

@@ -5,6 +5,18 @@ from __future__ import annotations
 from codebrain.core.repository import Repository
 
 
+def test_empty_searches_do_not_load_embedder(sqlite_store) -> None:
+    class FailEmbedder:
+        def embed(self, text: str) -> list[float]:
+            raise AssertionError("empty collections must not load or call the embedder")
+
+    repository = Repository(sqlite_store, FailEmbedder())
+
+    assert repository.search_conventions("auth") == []
+    assert repository.search_sessions("auth") == []
+    assert repository.search_history("auth") == []
+
+
 def test_repository_adds_searches_and_lists_conventions(
     repository: Repository,
 ) -> None:

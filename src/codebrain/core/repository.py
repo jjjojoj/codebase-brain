@@ -37,6 +37,8 @@ class Repository:
         module_filter: str | None = None,
         top_k: int = 5,
     ) -> list[dict[str, Any]]:
+        if self.store.count("conventions") == 0:
+            return []
         search_text = " ".join(part for part in (query, keywords_text) if part)
         embedding = self.embedder.embed(search_text)
         filter_expr = None
@@ -113,6 +115,8 @@ class Repository:
     def search_sessions(
         self, query: str, top_k: int = 5
     ) -> list[dict[str, Any]]:
+        if self.store.count("session_memory") == 0:
+            return []
         embedding = self.embedder.embed(query)
         return self.store.search("session_memory", embedding, top_k)
 
@@ -147,6 +151,8 @@ class Repository:
         file_filter: str | None = None,
         top_k: int = 10,
     ) -> list[dict[str, Any]]:
+        if self.store.count("git_history") == 0:
+            return []
         embedding = self.embedder.embed(query)
         filter_expr = None
         if file_filter:

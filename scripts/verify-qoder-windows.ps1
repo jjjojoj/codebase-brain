@@ -5,6 +5,7 @@ param(
     [Alias("QoderMcpJson")]
     [string]$McpJson = "",
     [string]$EmbedderModel = "paraphrase-multilingual-MiniLM-L12-v2",
+    [string]$EmbedderDevice = "cpu",
     [switch]$RunSidecarIndex,
     [switch]$RunStdioSmoke,
     [string]$AsyncSmokeFile = "",
@@ -47,6 +48,7 @@ $env:CODEBRAIN_DB_PATH = $dbPath
 $env:CODEBRAIN_DEFAULT_CONVENTIONS_PATH = $conventionsPath
 $env:CODEBRAIN_CODEBASE_MEMORY_BINARY = $sidecar
 $env:CODEBRAIN_EMBEDDER_MODEL = $EmbedderModel
+$env:CODEBRAIN_EMBEDDER_DEVICE = $EmbedderDevice
 
 Write-Host "`n== Git version =="
 git -C $CodebrainRoot status --short --branch

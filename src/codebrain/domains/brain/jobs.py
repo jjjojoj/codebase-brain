@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from threading import Lock, Thread
+import time
 from typing import Any, Callable
 from uuid import uuid4
 
@@ -27,6 +28,8 @@ class IndexJob:
     updated_at: str = field(default_factory=_now)
     result: dict[str, Any] | None = None
     error: str = ""
+    queue_seconds: float | None = None
+    execution_seconds: float | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -37,6 +40,8 @@ class IndexJob:
             "updated_at": self.updated_at,
             "result": self.result,
             "error": self.error,
+            "queue_seconds": self.queue_seconds,
+            "execution_seconds": self.execution_seconds,
         }
 
 
@@ -90,13 +95,24 @@ def clear_jobs_for_tests() -> None:
 
 
 def _run_job(job_id: str, target: JobTarget) -> None:
-    _update_job(job_id, status="running")
+    started = time.perf_counter()
+    _update_job(job_id, status="running", queue_seconds=_job_age_seconds(job_id))
     try:
         result = target()
     except Exception as exc:
-        _update_job(job_id, status="failed", error=str(exc))
+        _update_job(
+            job_id,
+            status="failed",
+            error=str(exc),
+            execution_seconds=round(time.perf_counter() - started, 3),
+        )
         return
-    _update_job(job_id, status="succeeded", result=result)
+    _update_job(
+        job_id,
+        status="succeeded",
+        result=result,
+        execution_seconds=round(time.perf_counter() - started, 3),
+    )
 
 
 def _update_job(
@@ -105,6 +121,8 @@ def _update_job(
     status: str,
     result: dict[str, Any] | None = None,
     error: str = "",
+    queue_seconds: float | None = None,
+    execution_seconds: float | None = None,
 ) -> None:
     with _lock:
         job = _jobs[job_id]
@@ -114,6 +132,10 @@ def _update_job(
             job.result = result
         if error:
             job.error = error
+        if queue_seconds is not None:
+            job.queue_seconds = queue_seconds
+        if execution_seconds is not None:
+            job.execution_seconds = execution_seconds
 
 
 def _elapsed_seconds(created_at: str) -> float:
@@ -122,3 +144,9 @@ def _elapsed_seconds(created_at: str) -> float:
     except ValueError:
         return 0.0
     return round((datetime.now(UTC) - created).total_seconds(), 3)
+
+
+def _job_age_seconds(job_id: str) -> float:
+    with _lock:
+        created_at = _jobs[job_id].created_at
+    return _elapsed_seconds(created_at)

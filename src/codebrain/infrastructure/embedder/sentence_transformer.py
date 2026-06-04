@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from threading import Lock
 from typing import Any
 
 from codebrain.config import Settings
@@ -19,7 +20,9 @@ class SentenceTransformerEmbedder(Embedder):
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or Settings()
         self.model_name = self.settings.embedder_model
+        self.device = self.settings.embedder_device
         self._model: Any | None = None
+        self._model_lock = Lock()
 
     def _load_model(self) -> None:
         try:
@@ -30,11 +33,18 @@ class SentenceTransformerEmbedder(Embedder):
                 "Install with: pip install -e '.[local]', or set "
                 "CODEBRAIN_EMBEDDER_PROVIDER=ollama for an approved local Ollama service."
             ) from exc
-        self._model = SentenceTransformer(self.model_name)
+        device = None if self.device == "auto" else self.device
+        self._model = SentenceTransformer(self.model_name, device=device)
+
+    @property
+    def model_loaded(self) -> bool:
+        return self._model is not None
 
     def _ensure_loaded(self) -> None:
         if self._model is None:
-            self._load_model()
+            with self._model_lock:
+                if self._model is None:
+                    self._load_model()
 
     def embed(self, text: str) -> list[float]:
         if not isinstance(text, str):

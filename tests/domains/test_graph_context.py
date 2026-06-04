@@ -57,3 +57,78 @@ def test_gather_graph_context_prefers_explicit_symbols() -> None:
     )
 
     assert adapter.queries == ["BaseBackend", "ModelBackend"]
+
+
+def test_gather_graph_context_maps_chinese_code_terms() -> None:
+    adapter = RecordingAdapter()
+
+    gather_graph_context(
+        task="理解 Django 用户认证和登录流程",
+        top_k=5,
+        adapter=adapter,
+    )
+
+    assert adapter.queries == [
+        "authenticate",
+        "authentication",
+        "auth",
+        "login",
+        "Django",
+    ]
+
+
+class RankedAdapter:
+    def __init__(self) -> None:
+        self.queries: list[str] = []
+
+    def status(self) -> dict[str, Any]:
+        return {"available": True}
+
+    def search_graph(self, symbol: str, repo_path: str, limit: int) -> dict[str, Any]:
+        self.queries.append(symbol)
+        rows = {
+            "authenticate": [
+                {
+                    "name": "AuthenticateTests",
+                    "qualified_name": "tests.AuthenticateTests",
+                    "label": "Class",
+                    "file_path": "tests/test_auth.py",
+                    "is_test": True,
+                    "in_degree": 10,
+                },
+                {
+                    "name": "authenticate",
+                    "qualified_name": "django.contrib.auth.authenticate",
+                    "label": "Function",
+                    "file_path": "django/contrib/auth/__init__.py",
+                    "in_degree": 20,
+                },
+            ],
+            "login": [
+                {
+                    "name": "login",
+                    "qualified_name": "django.contrib.auth.login",
+                    "label": "Function",
+                    "file_path": "django/contrib/auth/__init__.py",
+                    "in_degree": 12,
+                }
+            ],
+        }
+        return {"ok": True, "data": {"results": rows[symbol]}}
+
+
+def test_gather_graph_context_merges_and_ranks_all_symbol_queries() -> None:
+    adapter = RankedAdapter()
+
+    result = gather_graph_context(
+        task="auth",
+        symbols=["authenticate", "login"],
+        top_k=2,
+        adapter=adapter,
+    )
+
+    assert adapter.queries == ["authenticate", "login"]
+    assert [row["name"] for row in result["related_symbols"]] == [
+        "authenticate",
+        "login",
+    ]

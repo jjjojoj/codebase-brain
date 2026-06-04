@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from threading import Lock
+
 from codebrain.config import Settings
 from codebrain.core.embedder import Embedder
 from codebrain.core.vector_store import AbstractVectorStore, SqliteVectorStore
@@ -14,18 +16,36 @@ class Container:
         self.settings = settings
         self._embedder: Embedder | None = None
         self._vector_store: AbstractVectorStore | None = None
+        self._embedder_lock = Lock()
+        self._vector_store_lock = Lock()
 
     @property
     def embedder(self) -> Embedder:
         if self._embedder is None:
-            self._embedder = self._build_embedder()
+            with self._embedder_lock:
+                if self._embedder is None:
+                    self._embedder = self._build_embedder()
         return self._embedder
 
     @property
     def vector_store(self) -> AbstractVectorStore:
         if self._vector_store is None:
-            self._vector_store = self._build_vector_store()
+            with self._vector_store_lock:
+                if self._vector_store is None:
+                    self._vector_store = self._build_vector_store()
         return self._vector_store
+
+    def resource_status(self) -> dict[str, object]:
+        embedder = self._embedder
+        return {
+            "embedder_provider": self.settings.embedder_provider,
+            "embedder_device": self.settings.embedder_device,
+            "embedder_initialized": embedder is not None,
+            "embedding_model_loaded": bool(
+                embedder is not None and getattr(embedder, "model_loaded", False)
+            ),
+            "vector_store_initialized": self._vector_store is not None,
+        }
 
     def _build_embedder(self) -> Embedder:
         provider = self.settings.embedder_provider

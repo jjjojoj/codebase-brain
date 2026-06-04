@@ -47,6 +47,7 @@ def health() -> dict[str, Any]:
 
     status["vector_store_backend"] = container.settings.vector_store_backend
     status["db_path"] = str(container.settings.resolved_db_path)
+    status["resources"] = container.resource_status()
     status["stable_profile"] = "mvp"
     status["embedding_policy"] = "local_only"
     status["git_history_vector_index_enabled"] = container.settings.git_history_index_enabled
