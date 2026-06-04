@@ -99,7 +99,9 @@ def _suggested_next_steps(
     steps: list[str] = []
     steps.extend(_task_checklist(task))
     if status.get("local") == "empty":
-        steps.append("run brain_index_project to index your repository")
+        steps.append(
+            "run brain_sync_project(force=true), then poll brain_index_job_status(job_id)"
+        )
     if not any([critical_conventions, recent_changes, similar_sessions]):
         steps.append(
             "no context found for this task; try broader keywords or index conventions first"

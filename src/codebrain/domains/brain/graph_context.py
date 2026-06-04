@@ -2,9 +2,36 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
+
+
+_TASK_QUERY_STOPWORDS = {
+    "add",
+    "build",
+    "change",
+    "check",
+    "create",
+    "debug",
+    "explain",
+    "fix",
+    "flow",
+    "for",
+    "from",
+    "implement",
+    "inspect",
+    "into",
+    "logic",
+    "module",
+    "refactor",
+    "remove",
+    "the",
+    "understand",
+    "update",
+    "with",
+}
 
 
 def gather_graph_context(
@@ -53,7 +80,20 @@ def _graph_queries(task: str, symbols: list[str] | None) -> list[str]:
     queries = [symbol.strip() for symbol in symbols or [] if symbol.strip()]
     if queries:
         return queries
-    return [task]
+
+    candidates = re.findall(r"[A-Za-z_][A-Za-z0-9_.]*", task)
+    useful: list[str] = []
+    seen: set[str] = set()
+    for candidate in candidates:
+        normalized = candidate.strip("._")
+        lowered = normalized.lower()
+        if len(normalized) < 3 or lowered in _TASK_QUERY_STOPWORDS or lowered in seen:
+            continue
+        useful.append(normalized)
+        seen.add(lowered)
+        if len(useful) >= 5:
+            break
+    return useful or [task]
 
 
 def _extract_symbols(query: str, result: dict[str, Any]) -> list[dict[str, Any]]:

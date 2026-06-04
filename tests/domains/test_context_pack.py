@@ -63,7 +63,10 @@ def test_context_pack_returns_valid_empty_pack_when_all_sources_empty() -> None:
     assert pack["similar_sessions"] == []
     assert "graph sidecar not available" in pack["warnings"]
     assert "context pack has no results" in pack["warnings"]
-    assert "run brain_index_project to index your repository" in pack["suggested_next_steps"]
+    assert (
+        "run brain_sync_project(force=true), then poll brain_index_job_status(job_id)"
+        in pack["suggested_next_steps"]
+    )
     assert (
         "no context found for this task; try broader keywords or index conventions first"
         in pack["suggested_next_steps"]
