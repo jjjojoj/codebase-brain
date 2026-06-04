@@ -178,10 +178,12 @@ CODEBRAIN_DB_PATH=/ABS/PATH/your-project/.codebrain/codebrain.db \
 
 Qoder + Windows 的完整部署、升级、验收和回滚流程见
 [`docs/Qoder-Windows部署与验收.md`](docs/Qoder-Windows部署与验收.md)。
-纯 Windows 11 同事安装流程见
-[`docs/Win11同事安装指南.md`](docs/Win11同事安装指南.md)。
-第一次接触 MCP 的同事应先阅读
-[`docs/同事使用手册.md`](docs/同事使用手册.md)。
+纯 Windows 11 安装流程见
+[`docs/Windows安装指南.md`](docs/Windows安装指南.md)。
+Cursor 配置流程见
+[`docs/Cursor-Windows部署指南.md`](docs/Cursor-Windows部署指南.md)。
+第一次接触 MCP 时先阅读
+[`docs/使用指南.md`](docs/使用指南.md)。
 项目能力是否真正解决问题，应按
 [`docs/七项能力验收矩阵.md`](docs/七项能力验收矩阵.md) 留存证据。
 

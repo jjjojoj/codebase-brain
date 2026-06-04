@@ -3,8 +3,8 @@
 本文面向负责部署 Codebase Brain 的维护者。目标是在 Windows Qoder 中只配置一个
 stdio MCP Server，并用可重复的步骤确认代码、依赖、sidecar、数据路径和工具面都正确。
 
-同事的电脑只需要 Windows 11，不需要 WSL。WSL/Hermes 仅属于维护者自己的开发环境，不进入
-团队部署架构。普通同事安装请直接使用 [`Win11同事安装指南.md`](Win11同事安装指南.md)。
+使用端只需要 Windows 11，不需要 WSL。WSL/Hermes 仅属于可选开发环境，不进入
+Windows 部署架构。首次安装请使用 [`Windows安装指南.md`](Windows安装指南.md)。
 
 ## 1. 组件和数据流
 
@@ -57,7 +57,7 @@ cd D:\cb
 
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 `
   -ProjectRoot "D:\qoder工作区\django-test" `
-  -SidecarPath "D:\安装包\codebase-memory-mcp.exe" `
+  -SidecarPath "D:\安装包\codebase-memory-mcp-windows-amd64.zip" `
   -InstallDev
 ```
 
@@ -72,7 +72,7 @@ powershell -ExecutionPolicy Bypass -File D:\cb\scripts\verify-qoder-windows.ps1 
 否则脚本会明确提示安装开发测试依赖。验证 sidecar 能否索引中文路径业务仓库时，加
 `-RunSidecarIndex`；该选项会执行一次 `fast` 图谱索引。
 
-中文路径验收必须从 Windows PowerShell 原生执行。WSL 不属于同事部署方案，也不要从 WSL
+中文路径验收必须从 Windows PowerShell 原生执行。WSL 不属于 Windows 部署方案，也不要从 WSL
 调用 `powershell.exe` 进行发布验收。
 
 ## 4. Qoder 配置
@@ -184,7 +184,7 @@ git switch --detach <已验证提交>
 | job 一直找不到 | MCP 进程可能已重启；重新发起异步任务 |
 | 数据写错项目 | 检查 `CODEBRAIN_DB_PATH` 和 `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` 绝对路径 |
 
-## 9. 发布给同事前的门禁
+## 9. 发布门禁
 
 - GitHub `origin/main` 提交已记录。
 - `python -m pytest -q` 全部通过。

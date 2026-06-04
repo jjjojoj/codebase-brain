@@ -88,12 +88,29 @@ if ($SidecarPath) {
         throw "SidecarPath not found: $SidecarPath"
     }
     $resolvedSidecarSource = (Resolve-Path -LiteralPath $SidecarPath).Path
-    $resolvedSidecarTarget = [System.IO.Path]::GetFullPath($sidecar)
-    if (-not $resolvedSidecarSource.Equals(
-        $resolvedSidecarTarget,
-        [System.StringComparison]::OrdinalIgnoreCase
-    )) {
-        Copy-Item -LiteralPath $resolvedSidecarSource -Destination $sidecar -Force
+    if ([System.IO.Path]::GetExtension($resolvedSidecarSource) -ieq ".zip") {
+        $extractDir = Join-Path $env:TEMP "codebrain-sidecar-$([guid]::NewGuid().ToString('N'))"
+        try {
+            Expand-Archive -LiteralPath $resolvedSidecarSource -DestinationPath $extractDir -Force
+            $executable = Get-ChildItem -LiteralPath $extractDir -Filter "codebase-memory-mcp.exe" -File -Recurse |
+                Select-Object -First 1
+            if ($null -eq $executable) {
+                throw "The sidecar ZIP does not contain codebase-memory-mcp.exe."
+            }
+            Copy-Item -LiteralPath $executable.FullName -Destination $sidecar -Force
+        } finally {
+            if (Test-Path -LiteralPath $extractDir) {
+                Remove-Item -LiteralPath $extractDir -Recurse -Force
+            }
+        }
+    } else {
+        $resolvedSidecarTarget = [System.IO.Path]::GetFullPath($sidecar)
+        if (-not $resolvedSidecarSource.Equals(
+            $resolvedSidecarTarget,
+            [System.StringComparison]::OrdinalIgnoreCase
+        )) {
+            Copy-Item -LiteralPath $resolvedSidecarSource -Destination $sidecar -Force
+        }
     }
 }
 

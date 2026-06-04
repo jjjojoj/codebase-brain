@@ -1,6 +1,6 @@
-# Win11 同事安装指南
+# Windows 11 安装指南
 
-这份指南面向使用 Qoder、Cursor 等 AI 编程客户端的普通开发者。
+这份指南用于在一台没有安装过 Codebase Brain 的 Windows 11 电脑上完成首次部署。
 
 **不需要安装 WSL、Linux、Docker、Hermes 或 Milvus。** Codebase Brain、SQLite、embedding
 模型和图谱 sidecar 都直接运行在 Windows 11 中。
@@ -12,8 +12,12 @@
 - Python 3.11 或更高版本，推荐 3.12；安装时启用 Python Launcher
 - Qoder、Cursor 或其它支持 stdio MCP 的客户端
 
-维护者还需要提供 Windows 版 `codebase-memory-mcp.exe`。没有 sidecar 时也能使用项目约定、
+图谱能力需要 Windows 版 `codebase-memory-mcp` ZIP 或 EXE。没有 sidecar 时也能使用项目约定、
 会话记忆和 Git 只读工具，但代码图谱功能会降级。
+
+`D:\cb\sidecar` 是 Codebase Brain 内部保存图谱引擎的位置。安装脚本会将 ZIP 中的
+`codebase-memory-mcp.exe` 解压到这里，Codebase Brain 再调用它完成符号搜索、调用链和代码图谱
+索引。不要把 sidecar 单独配置成第二个 MCP Server。
 
 ## 第一次安装
 
@@ -26,7 +30,7 @@ cd D:\cb
 
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 `
   -ProjectRoot "D:\项目\你的业务仓库" `
-  -SidecarPath "D:\安装包\codebase-memory-mcp.exe"
+  -SidecarPath "$env:USERPROFILE\Downloads\codebase-memory-mcp-windows-amd64.zip"
 ```
 
 脚本会：
@@ -34,7 +38,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 `
 1. 在 `D:\cb\.venv` 创建 Python 虚拟环境，优先使用 3.12，没有时使用 3.11。
 2. 安装 Codebase Brain 和本地 embedding 依赖。
 3. 在业务仓库创建 `.codebrain\conventions`。
-4. 将 sidecar 复制到 `D:\cb\sidecar`。
+4. 从 ZIP 解压 sidecar，或将 EXE 复制到 `D:\cb\sidecar`。
 5. 生成 `D:\cb\.local-configs\<业务仓库名>-mcp.json`。
 6. 执行基础安装检查。
 
@@ -72,7 +76,7 @@ Qoder 可能存在多个 MCP 配置文件。若 UI 配置没有生效，请联�
 根据约定、相关符号和 Git 历史制定修改计划。
 ```
 
-日常工具使用方法见 [`同事使用手册.md`](同事使用手册.md)。
+日常工具使用方法见 [`使用指南.md`](使用指南.md)。
 
 ## 自助检查
 
