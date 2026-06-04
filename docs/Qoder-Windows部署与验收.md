@@ -72,6 +72,14 @@ powershell -ExecutionPolicy Bypass -File D:\cb\scripts\verify-qoder-windows.ps1 
 否则脚本会明确提示安装开发测试依赖。验证 sidecar 能否索引中文路径业务仓库时，加
 `-RunSidecarIndex`；该选项会执行一次 `fast` 图谱索引。
 
+验证 Qoder 敏感的异步工作流时，传入一个仓库内文件：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File D:\cb\scripts\verify-qoder-windows.ps1 `
+  -ProjectRoot "D:\projects\django-test" `
+  -AsyncSmokeFile "django/contrib/auth/__init__.py"
+```
+
 中文路径验收必须从 Windows PowerShell 原生执行。WSL 不属于 Windows 部署方案，也不要从 WSL
 调用 `powershell.exe` 进行发布验收。
 

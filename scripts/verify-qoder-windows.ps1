@@ -7,6 +7,7 @@ param(
     [string]$EmbedderModel = "paraphrase-multilingual-MiniLM-L12-v2",
     [switch]$RunSidecarIndex,
     [switch]$RunStdioSmoke,
+    [string]$AsyncSmokeFile = "",
     [switch]$RunTests
 )
 
@@ -132,6 +133,16 @@ if ($RunStdioSmoke) {
     & $python (Join-Path $CodebrainRoot "scripts\smoke-mcp-stdio.py") $McpJson
     if ($LASTEXITCODE -ne 0) {
         throw "MCP stdio smoke failed with exit code $LASTEXITCODE"
+    }
+}
+
+if ($AsyncSmokeFile) {
+    Write-Host "`n== Async workflow smoke =="
+    & $python (Join-Path $CodebrainRoot "scripts\smoke-async-workflows.py") `
+        --repo-path $ProjectRoot `
+        --file-path $AsyncSmokeFile
+    if ($LASTEXITCODE -ne 0) {
+        throw "Async workflow smoke failed with exit code $LASTEXITCODE"
     }
 }
 
