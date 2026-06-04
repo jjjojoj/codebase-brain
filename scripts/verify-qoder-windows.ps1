@@ -1,0 +1,125 @@
+param(
+    [string]$CodebrainRoot = "D:\cb",
+    [Parameter(Mandatory = $true)]
+    [string]$ProjectRoot,
+    [string]$QoderMcpJson = "",
+    [switch]$RunSidecarIndex,
+    [switch]$RunTests
+)
+
+$ErrorActionPreference = "Stop"
+
+if ($ProjectRoot.Contains([char]0xFFFD)) {
+    throw "ProjectRoot contains Unicode replacement characters. Run this script from native Windows PowerShell instead of passing a Chinese path through WSL."
+}
+
+function Assert-PathExists {
+    param([string]$Path, [string]$Label)
+    if (-not (Test-Path -LiteralPath $Path)) {
+        throw "$Label not found: $Path"
+    }
+    Write-Host "[OK] $Label`: $Path"
+}
+
+$python = Join-Path $CodebrainRoot ".venv\Scripts\python.exe"
+$codebrain = Join-Path $CodebrainRoot ".venv\Scripts\codebrain.exe"
+$sidecar = Join-Path $CodebrainRoot "sidecar\codebase-memory-mcp.exe"
+$dbPath = Join-Path $ProjectRoot ".codebrain\codebrain_full.db"
+$conventionsPath = Join-Path $ProjectRoot ".codebrain\conventions"
+
+Assert-PathExists $CodebrainRoot "Codebase Brain root"
+Assert-PathExists $ProjectRoot "Project root"
+Assert-PathExists $python "Virtualenv Python"
+Assert-PathExists $codebrain "Codebrain CLI"
+if (Test-Path -LiteralPath $sidecar) {
+    Write-Host "[OK] Code graph sidecar: $sidecar"
+} elseif ($RunSidecarIndex) {
+    throw "Code graph sidecar not found: $sidecar"
+} else {
+    Write-Warning "Code graph sidecar not found. Graph tools will run in degraded mode."
+}
+
+$env:CODEBRAIN_DB_PATH = $dbPath
+$env:CODEBRAIN_DEFAULT_CONVENTIONS_PATH = $conventionsPath
+$env:CODEBRAIN_CODEBASE_MEMORY_BINARY = $sidecar
+
+Write-Host "`n== Git version =="
+git -C $CodebrainRoot status --short --branch
+git -C $CodebrainRoot log -1 --oneline
+
+Write-Host "`n== CLI info =="
+& $codebrain info
+if ($LASTEXITCODE -ne 0) {
+    throw "codebrain info failed with exit code $LASTEXITCODE"
+}
+
+Write-Host "`n== Tool surface =="
+$toolCheck = @'
+from codebrain.server import mcp
+tools = sorted(mcp._tool_manager._tools)
+print(f"tool_count={len(tools)}")
+print("\n".join(tools))
+expected = 23 if "index_git_history" in tools else 21
+raise SystemExit(0 if len(tools) == expected else 1)
+'@
+
+$toolCheck | & $python -
+if ($LASTEXITCODE -ne 0) {
+    throw "Unexpected MCP tool surface"
+}
+
+Write-Host "`n== Compile check =="
+& $python -m compileall -q (Join-Path $CodebrainRoot "src") (Join-Path $CodebrainRoot "tests")
+if ($LASTEXITCODE -ne 0) {
+    throw "compileall failed with exit code $LASTEXITCODE"
+}
+
+if ($RunSidecarIndex) {
+    Write-Host "`n== Sidecar Chinese-path fast index =="
+    $env:CODEBRAIN_VERIFY_PROJECT_ROOT = $ProjectRoot
+    $sidecarCheck = @'
+import json
+import os
+from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
+
+result = CodebaseMemoryAdapter(
+    os.environ["CODEBRAIN_CODEBASE_MEMORY_BINARY"],
+    timeout_sec=300,
+).index_repository(
+    os.environ["CODEBRAIN_VERIFY_PROJECT_ROOT"],
+    mode="fast",
+)
+print(json.dumps(result, ensure_ascii=False))
+raise SystemExit(0 if result.get("ok") is True else 1)
+'@
+    $sidecarCheck | & $python -
+    if ($LASTEXITCODE -ne 0) {
+        throw "sidecar fast index failed for project: $ProjectRoot"
+    }
+}
+
+if ($RunTests) {
+    Write-Host "`n== Tests =="
+    & $python -c "import pytest" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw "pytest is not installed. Re-run scripts\setup-windows.ps1 with -InstallDev."
+    }
+    & $python -m pytest -q (Join-Path $CodebrainRoot "tests")
+    if ($LASTEXITCODE -ne 0) {
+        throw "pytest failed with exit code $LASTEXITCODE"
+    }
+}
+
+if ($QoderMcpJson) {
+    Write-Host "`n== Qoder MCP JSON =="
+    Assert-PathExists $QoderMcpJson "Qoder MCP config"
+    $config = Get-Content -LiteralPath $QoderMcpJson -Raw | ConvertFrom-Json
+    if ($null -eq $config.mcpServers."codebase-brain") {
+        throw "Qoder MCP config does not contain mcpServers.codebase-brain"
+    }
+    Write-Host "[OK] Qoder MCP JSON parses and contains codebase-brain"
+}
+
+Write-Host "`nPASS: static Windows/Qoder deployment checks completed."
+Write-Host "Next: restart Qoder and call health, brain_status, and brain_index_project against:"
+Write-Host $ProjectRoot

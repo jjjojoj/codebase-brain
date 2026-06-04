@@ -15,3 +15,6 @@ build/
 .codebrain/*.db-*
 **/.codebrain/*.db
 **/.codebrain/*.db-*
+.local-configs/
+sidecar/*.exe
+sidecar/*.zip

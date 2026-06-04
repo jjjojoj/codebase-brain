@@ -176,6 +176,15 @@ CODEBRAIN_DB_PATH=/ABS/PATH/your-project/.codebrain/codebrain.db \
 
 只需要配置一个 MCP Server，名字建议叫 `codebase-brain`。所有路径建议写绝对路径，因为不同客户端对 `~`、工作目录和环境变量的处理不完全一致。
 
+Qoder + Windows 的完整部署、升级、验收和回滚流程见
+[`docs/Qoder-Windows部署与验收.md`](docs/Qoder-Windows部署与验收.md)。
+纯 Windows 11 同事安装流程见
+[`docs/Win11同事安装指南.md`](docs/Win11同事安装指南.md)。
+第一次接触 MCP 的同事应先阅读
+[`docs/同事使用手册.md`](docs/同事使用手册.md)。
+项目能力是否真正解决问题，应按
+[`docs/七项能力验收矩阵.md`](docs/七项能力验收矩阵.md) 留存证据。
+
 ### 通用 JSON 配置
 
 适用于使用 `mcpServers` JSON 结构的客户端，或可以在 UI 里粘贴同等字段的客户端。
