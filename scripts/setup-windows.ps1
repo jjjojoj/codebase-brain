@@ -49,10 +49,12 @@ if ($runningCodebrain) {
 }
 
 if (-not (Test-Path -LiteralPath $python)) {
-    & py -3.12 -c "import sys" 2>$null
-    $launcherVersion = if ($LASTEXITCODE -eq 0) { "3.12" } else { "3.11" }
-    & py "-$launcherVersion" -c "import sys" 2>$null
-    if ($LASTEXITCODE -ne 0) {
+    $pythonRuntimes = (& py -0p | Out-String)
+    if ($pythonRuntimes -match "-V:3\.12") {
+        $launcherVersion = "3.12"
+    } elseif ($pythonRuntimes -match "-V:3\.11") {
+        $launcherVersion = "3.11"
+    } else {
         throw "Python 3.11 or newer was not found. Install it from python.org and run setup again."
     }
     & py "-$launcherVersion" -m venv $venv
