@@ -36,8 +36,10 @@ def test_dashboard_html_has_required_mount_points() -> None:
 
 
 def test_command_hint_prefers_installed_codebrain(monkeypatch, tmp_path) -> None:
-    executable = tmp_path / "codebrain.exe"
+    executable = tmp_path / "installed" / "codebrain.exe"
+    executable.parent.mkdir()
     executable.touch()
+    monkeypatch.setattr(dashboard.sys, "executable", str(tmp_path / "python" / "python.exe"))
     monkeypatch.setattr(dashboard.shutil, "which", lambda name: str(executable))
 
     assert dashboard._command_hint() == str(executable.resolve())

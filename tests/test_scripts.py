@@ -11,7 +11,7 @@ def test_async_smoke_explains_missing_codebrain_installation() -> None:
     script = Path(__file__).parents[1] / "scripts" / "smoke-async-workflows.py"
 
     result = subprocess.run(
-        [sys.executable, "-I", str(script), "--help"],
+        [sys.executable, "-I", "-S", str(script), "--help"],
         check=False,
         capture_output=True,
         text=True,
