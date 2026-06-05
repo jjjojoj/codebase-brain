@@ -168,6 +168,7 @@ Qoder 配置原样复制到 Cursor；Cursor 配置只保留 `command`、`args` �
 
 - `brain_sync_project`
 - `brain_context_for_task`
+- `get_blame`
 - `get_co_changed_files`
 - `index_git_history`，仅实验开关启用时存在
 

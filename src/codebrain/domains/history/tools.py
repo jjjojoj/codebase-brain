@@ -30,9 +30,31 @@ def get_blame(
     start_line: int,
     end_line: int,
     repo_path: str = ".",
-) -> list[dict[str, Any]]:
-    """Use only when Context Pack lacks line-level authorship or rationale for a code range."""
-    return git_indexer.get_blame_info(repo_path, file_path, start_line, end_line)
+    async_mode: bool = True,
+) -> dict[str, Any] | list[dict[str, Any]]:
+    """Use only when Context Pack lacks line-level authorship or rationale for a code range.
+
+    Defaults to async_mode=True because line-level git blame can exceed Qoder's
+    tool-call timeout on large repositories. When async, returns a job_id; poll
+    brain_index_job_status(job_id).
+    """
+    def _run() -> dict[str, Any]:
+        results = git_indexer.get_blame_info(repo_path, file_path, start_line, end_line)
+        return {"ok": True, "results": results}
+
+    if async_mode:
+        job = brain_jobs.start_job(
+            f"blame {file_path}:{start_line}-{end_line}",
+            _run,
+        )
+        return {
+            "ok": True,
+            "status": "queued",
+            "job": job,
+            "hint": "Poll brain_index_job_status(job_id) for results",
+        }
+
+    return _run()["results"]
 
 
 def get_co_changed_files(

@@ -81,6 +81,27 @@ def test_all_stable_tool_descriptions_define_ai_decision_triggers() -> None:
         assert trigger in tools[name].description
 
 
+def test_session_file_change_schema_restricts_change_type() -> None:
+    from codebrain import server
+
+    schema = _tools(server.mcp)["record_file_change"].inputSchema
+
+    assert schema["properties"]["change_type"]["enum"] == [
+        "created",
+        "modified",
+        "deleted",
+    ]
+
+
+def test_get_blame_schema_defaults_to_async_mode() -> None:
+    from codebrain import server
+
+    schema = _tools(server.mcp)["get_blame"].inputSchema
+
+    assert schema["properties"]["async_mode"]["default"] is True
+    assert "async_mode" not in schema["required"]
+
+
 def test_git_history_vector_tools_register_only_when_flag_enabled(monkeypatch) -> None:
     """Semantic git history tools should be an explicit feature-flag surface."""
     from codebrain import server

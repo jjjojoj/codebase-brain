@@ -391,7 +391,7 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 | `start_session` | AI 对复杂、多步骤或跨天任务自动开始一次会话；简单任务跳过。 |
 | `record_decision` | AI 自动记录已确定且原因明确的重要决策，不记录临时想法。 |
 | `record_problem` | AI 自动记录已验证解决方案的非显然问题，不记录未解决猜测。 |
-| `record_file_change` | AI 自动记录目的明确的重要文件修改，跳过生成文件和纯格式改动。 |
+| `record_file_change` | AI 自动记录目的明确的重要文件修改，`change_type` 只能是 `created`、`modified` 或 `deleted`；跳过生成文件和纯格式改动。 |
 | `end_session` | AI 在测试完成和任务结束或交接时自动保存会话，不在任务中途调用。 |
 | `recall_context` | 根据任务描述召回相似会话。 |
 
@@ -399,9 +399,9 @@ CODEBRAIN_EMBEDDER_MODEL = "paraphrase-multilingual-MiniLM-L12-v2"
 
 | 工具 | 说明 |
 | --- | --- |
-| `get_blame` | Context Pack 之后仍需调查具体代码行历史时使用。 |
+| `get_blame` | Context Pack 之后仍需调查具体代码行历史时使用；默认异步返回 job。 |
 | `get_recent_changes` | Context Pack 之后仍需深挖单个文件提交历史时使用。 |
-| `get_co_changed_files` | Context Pack 之后仍需扩大单文件影响分析时使用。 |
+| `get_co_changed_files` | Context Pack 之后仍需扩大单文件影响分析时使用；默认异步返回 job。 |
 
 ## 配置项
 

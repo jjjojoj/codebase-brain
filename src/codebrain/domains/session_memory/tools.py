@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from codebrain.core.di import get_container
 from codebrain.core.repository import Repository
@@ -42,7 +42,9 @@ def record_problem(problem: str, solution: str, files: str = "") -> dict[str, st
 
 
 def record_file_change(
-    file_path: str, change_type: str, description: str
+    file_path: str,
+    change_type: Literal["created", "modified", "deleted"],
+    description: str,
 ) -> dict[str, str]:
     """Automatically record each meaningful file change in the active session.
 
