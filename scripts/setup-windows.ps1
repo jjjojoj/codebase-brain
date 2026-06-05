@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectRoot,
     [string]$GraphProjectRoot = "",
-    [string]$CodebrainRoot = (Split-Path -Parent $PSScriptRoot),
+    [string]$CodebrainRoot = "",
     [string]$SidecarPath = "",
     [string]$EmbedderModel = "paraphrase-multilingual-MiniLM-L12-v2",
     [string]$EmbedderDevice = "cpu",
@@ -28,6 +28,12 @@ function Assert-Command {
 Assert-NativeWindowsPath $ProjectRoot "ProjectRoot"
 if ($GraphProjectRoot) {
     Assert-NativeWindowsPath $GraphProjectRoot "GraphProjectRoot"
+}
+if (-not $CodebrainRoot) {
+    if (-not $PSScriptRoot) {
+        throw "CodebrainRoot was not provided and PSScriptRoot is unavailable. Pass -CodebrainRoot explicitly."
+    }
+    $CodebrainRoot = Split-Path -Parent $PSScriptRoot
 }
 Assert-NativeWindowsPath $CodebrainRoot "CodebrainRoot"
 Assert-Command "py" "Install Python 3.11 or newer from python.org and enable the Python launcher."
