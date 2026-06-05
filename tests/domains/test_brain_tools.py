@@ -348,6 +348,24 @@ def test_brain_context_for_task_defaults_to_async(monkeypatch, container) -> Non
     assert result["job"]["description"].startswith("context-pack")
 
 
+def test_brain_context_for_task_defaults_repo_path_from_alias(
+    monkeypatch,
+    container,
+    tmp_path,
+) -> None:
+    container.settings.codebase_memory_repo_aliases = f"{tmp_path}=D:/projects/demo"
+    observed: dict[str, Any] = {}
+    monkeypatch.setattr(
+        brain_tools,
+        "_build_context_pack",
+        lambda **kwargs: observed.setdefault("kwargs", kwargs) or {"status": "ready"},
+    )
+
+    brain_tools.brain_context_for_task("inspect auth", async_mode=False)
+
+    assert observed["kwargs"]["repo_path"] == str(tmp_path.resolve())
+
+
 def test_brain_context_for_task_infers_files_for_git_context(
     monkeypatch,
     container,
@@ -394,3 +412,71 @@ def test_brain_context_for_task_infers_files_for_git_context(
     assert result["recent_changes"]
     assert result["co_changed_files"]
     assert result["blame"]
+
+
+def test_brain_context_for_task_queues_auto_sync_when_graph_and_local_are_empty(
+    monkeypatch,
+    container,
+) -> None:
+    queued: list[dict[str, Any]] = []
+    monkeypatch.setattr(brain_tools, "_make_repository", lambda: object())
+    monkeypatch.setattr(
+        brain_tools,
+        "_make_codebase_memory_adapter",
+        lambda settings: FakeGraphAdapter(),
+    )
+    monkeypatch.setattr(
+        brain_tools.graph_context,
+        "gather_graph_context",
+        lambda **kwargs: {"status": "empty", "related_symbols": [], "warnings": []},
+    )
+    monkeypatch.setattr(
+        brain_tools.local_context,
+        "gather_local_context",
+        lambda **kwargs: {
+            "status": {"conventions": "empty", "history": "empty", "memory": "empty"},
+            "critical_conventions": [],
+            "recent_changes": [],
+            "co_changed_files": [],
+            "blame": [],
+            "similar_sessions": [],
+            "warnings": [],
+        },
+    )
+
+    def fake_sync_project(**kwargs: Any) -> dict[str, Any]:
+        queued.append(kwargs)
+        return {
+            "ok": True,
+            "status": "queued",
+            "repo_path": kwargs["repo_path"],
+            "job": {"job_id": "job-1", "status": "queued"},
+        }
+
+    monkeypatch.setattr(brain_tools, "brain_sync_project", fake_sync_project)
+
+    result = brain_tools.brain_context_for_task("inspect missing graph", async_mode=False)
+
+    assert queued == [
+        {
+            "repo_path": str(Path(".").expanduser().resolve()),
+            "async_mode": True,
+            "force": True,
+        }
+    ]
+    assert result["auto_sync"]["job"]["job_id"] == "job-1"
+    assert result["suggested_next_steps"][0] == (
+        "poll brain_index_job_status(job_id) for the queued auto-sync job"
+    )
+
+
+def test_resolve_repo_path_uses_default_project_before_cwd(tmp_path, test_settings) -> None:
+    test_settings.default_project = str(tmp_path)
+
+    assert brain_tools._resolve_repo_path(".", test_settings) == str(tmp_path.resolve())
+
+
+def test_default_repo_path_infers_windows_project_from_db_path(test_settings) -> None:
+    test_settings.db_path = r"D:\projects\django-test\.codebrain\codebrain_full.db"
+
+    assert brain_tools._default_repo_path(test_settings) == r"D:\projects\django-test"

@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)]
     [string]$ProjectRoot,
+    [string]$GraphProjectRoot = "",
     [string]$CodebrainRoot = (Split-Path -Parent $PSScriptRoot),
     [string]$SidecarPath = "",
     [string]$EmbedderModel = "paraphrase-multilingual-MiniLM-L12-v2",
@@ -25,12 +26,16 @@ function Assert-Command {
 }
 
 Assert-NativeWindowsPath $ProjectRoot "ProjectRoot"
+if ($GraphProjectRoot) {
+    Assert-NativeWindowsPath $GraphProjectRoot "GraphProjectRoot"
+}
 Assert-NativeWindowsPath $CodebrainRoot "CodebrainRoot"
 Assert-Command "py" "Install Python 3.11 or newer from python.org and enable the Python launcher."
 Assert-Command "git" "Install Git for Windows."
 
 $CodebrainRoot = (Resolve-Path -LiteralPath $CodebrainRoot).Path
 $ProjectRoot = (Resolve-Path -LiteralPath $ProjectRoot).Path
+$GraphProjectRoot = if ($GraphProjectRoot) { (Resolve-Path -LiteralPath $GraphProjectRoot).Path } else { "" }
 $venv = Join-Path $CodebrainRoot ".venv"
 $python = Join-Path $venv "Scripts\python.exe"
 $codebrain = Join-Path $venv "Scripts\codebrain.exe"
@@ -39,6 +44,14 @@ $sidecar = Join-Path $sidecarDir "codebase-memory-mcp.exe"
 $dataDir = Join-Path $ProjectRoot ".codebrain"
 $dbPath = Join-Path $dataDir "codebrain_full.db"
 $conventionsPath = Join-Path $dataDir "conventions"
+$repoAliases = if ($GraphProjectRoot -and -not $GraphProjectRoot.Equals(
+    $ProjectRoot,
+    [System.StringComparison]::OrdinalIgnoreCase
+)) {
+    "$ProjectRoot=$GraphProjectRoot"
+} else {
+    ""
+}
 $configDir = Join-Path $CodebrainRoot ".local-configs"
 $projectName = Split-Path -Leaf $ProjectRoot
 $configPath = Join-Path $configDir "$projectName-mcp.json"
@@ -141,6 +154,9 @@ $server = [ordered]@{
         CODEBRAIN_EMBEDDER_DEVICE = $EmbedderDevice
     }
 }
+if ($repoAliases) {
+    $server.env.CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES = $repoAliases
+}
 $config = [ordered]@{
     mcpServers = [ordered]@{
         "codebase-brain" = $server
@@ -156,6 +172,11 @@ $env:CODEBRAIN_DEFAULT_CONVENTIONS_PATH = $conventionsPath
 $env:CODEBRAIN_CODEBASE_MEMORY_BINARY = $sidecar
 $env:CODEBRAIN_EMBEDDER_MODEL = $EmbedderModel
 $env:CODEBRAIN_EMBEDDER_DEVICE = $EmbedderDevice
+if ($repoAliases) {
+    $env:CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES = $repoAliases
+} else {
+    Remove-Item Env:\CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES -ErrorAction SilentlyContinue
+}
 & $codebrain info
 if ($LASTEXITCODE -ne 0) {
     throw "codebrain info failed."

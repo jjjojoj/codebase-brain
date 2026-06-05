@@ -16,29 +16,58 @@ _TASK_QUERY_STOPWORDS = {
     "build",
     "change",
     "check",
+    "checks",
+    "checking",
     "create",
     "debug",
+    "delete",
     "explain",
     "fix",
     "flow",
     "for",
     "from",
+    "get",
+    "handle",
+    "handles",
+    "handling",
     "implement",
     "inspect",
     "into",
     "logic",
+    "manage",
+    "manages",
+    "managing",
     "module",
+    "process",
+    "processes",
+    "processing",
     "refactor",
     "remove",
+    "set",
     "the",
     "understand",
     "update",
+    "validate",
+    "validates",
+    "validating",
     "with",
 }
 
 _TASK_TERM_MAPPINGS = {
     "认证": ["authenticate", "authentication", "auth"],
     "登录": ["login"],
+    "限流": ["throttle", "rate_limit", "RateLimiter"],
+    "缓存": ["cache", "redis", "memoize"],
+    "权限": ["permission", "authorize", "authorization"],
+    "令牌": ["token", "credential"],
+    "rate limit": ["throttle", "rate_limit", "RateLimiter"],
+    "rate limiting": ["throttle", "rate_limit", "RateLimiter"],
+    "ratelimit": ["throttle", "rate_limit", "RateLimiter"],
+    "auth": ["authenticate", "authentication", "token", "permission"],
+    "authentication": ["authenticate", "auth", "token", "permission"],
+    "authorization": ["authorize", "permission", "policy"],
+    "cache": ["cache", "redis", "memoize"],
+    "caching": ["cache", "redis", "memoize"],
 }
 
 _GRAPH_LOCK_WAIT_SECONDS = 30
@@ -180,6 +209,13 @@ def _graph_queries(task: str, symbols: list[str] | None) -> list[str]:
     if queries:
         return _dedupe_text(queries)
 
+    lowered_task = task.lower()
+    mapped = [
+        query
+        for term, queries in _TASK_TERM_MAPPINGS.items()
+        if term.lower() in lowered_task
+        for query in queries
+    ]
     candidates = re.findall(r"[A-Za-z_][A-Za-z0-9_.]*", task)
     symbol_like: list[str] = []
     general: list[str] = []
@@ -192,12 +228,6 @@ def _graph_queries(task: str, symbols: list[str] | None) -> list[str]:
         target = symbol_like if _looks_symbol_like(normalized) else general
         target.append(normalized)
         seen.add(lowered)
-    mapped = [
-        query
-        for term, queries in _TASK_TERM_MAPPINGS.items()
-        if term in task
-        for query in queries
-    ]
     useful = _dedupe_text([*symbol_like, *mapped, *(general if not mapped else [])])[:8]
     return useful or [task]
 

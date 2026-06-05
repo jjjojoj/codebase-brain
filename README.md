@@ -120,6 +120,32 @@ codebase-memory-mcp --version
 }
 ```
 
+### 默认项目和中文路径映射
+
+不同 MCP 客户端的工作目录不可靠；Qoder 中未显式传 `repo_path` 时，进程 cwd 可能是 IDE
+安装目录。Codebase Brain 因此按以下顺序解析默认仓库：
+
+1. `CODEBRAIN_DEFAULT_PROJECT`
+2. `CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES` 的左侧路径
+3. `CODEBRAIN_DB_PATH` 中 `.codebrain` 的父目录
+4. `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` 中 `.codebrain` 的父目录
+5. 当前目录 `.`
+
+如果业务工作区包含中文路径，而 `codebase-memory-mcp` 在该路径下 discover 失败，可以保留业务
+工作区路径，同时把图谱索引映射到一个英文路径副本：
+
+```json
+{
+  "env": {
+    "CODEBRAIN_DEFAULT_PROJECT": "D:\\qoder工作区\\django-test",
+    "CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES": "D:\\qoder工作区\\django-test=D:\\projects\\django-test"
+  }
+}
+```
+
+查询时会依次尝试 Unicode project、legacy ASCII project 和 alias 目标 project；命中后返回
+`project_alias_used` / `project_aliases_tried`，方便排查实际使用的图谱库。
+
 ## 本地可视化 Dashboard
 
 可以启动一个只读本地页面，用来查看当前项目状态、文件过滤快照、sync-trigger 状态、Milvus 配置状态，并生成一份 MCP JSON 配置：
@@ -216,7 +242,8 @@ Windows:
       "args": ["serve"],
       "env": {
         "CODEBRAIN_DB_PATH": "C:\\path\\to\\your-project\\.codebrain\\codebrain.db",
-        "CODEBRAIN_DEFAULT_CONVENTIONS_PATH": "C:\\path\\to\\your-project\\.codebrain\\conventions"
+        "CODEBRAIN_DEFAULT_CONVENTIONS_PATH": "C:\\path\\to\\your-project\\.codebrain\\conventions",
+        "CODEBRAIN_DEFAULT_PROJECT": "C:\\path\\to\\your-project"
       }
     }
   }

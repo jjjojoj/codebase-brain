@@ -86,6 +86,7 @@ def get_blame_info(
     file_path: str,
     start: int,
     end: int,
+    timeout_sec: float | None = None,
 ) -> list[dict[str, Any]]:
     repo = _resolve_repo(repo_path)
     if start < 1 or end < start or not _is_git_repo(repo) or not _has_commits(repo):
@@ -103,6 +104,7 @@ def get_blame_info(
             "--",
             file_path,
         ],
+        timeout_sec=timeout_sec,
     )
     if not result.ok:
         detail = result.stderr.strip() or f"git blame exited with code {result.returncode}"
@@ -167,6 +169,73 @@ def get_co_changed(
     ]
 
 
+def get_co_changed_for_files(
+    repo_path: str | Path,
+    file_paths: list[str],
+    limit: int = 10,
+    max_commits: int = 50,
+    timeout_sec: float | None = None,
+) -> list[dict[str, Any]]:
+    """Return co-change signals for multiple source files using one git process."""
+    repo = _resolve_repo(repo_path)
+    requested = _dedupe_paths(file_paths)
+    if limit < 1 or not requested or not _is_git_repo(repo) or not _has_commits(repo):
+        return []
+
+    log_result = _run_git(
+        repo,
+        [
+            "log",
+            f"-n{max_commits}",
+            f"--format={GIT_RECORD_SEPARATOR}%ad",
+            "--date=iso-strict",
+            "--name-only",
+            "--full-diff",
+            "--",
+            *requested,
+        ],
+        timeout_sec=timeout_sec,
+    )
+    if not log_result.ok or not log_result.stdout.strip():
+        return []
+
+    requested_set = set(requested)
+    counts: dict[str, Counter[str]] = {file_path: Counter() for file_path in requested}
+    last_changed: dict[tuple[str, str], str] = {}
+    for raw_record in log_result.stdout.split(GIT_RECORD_SEPARATOR):
+        record = raw_record.strip()
+        if not record:
+            continue
+        date, _, files_blob = record.partition("\n")
+        changed_files = [
+            line.strip()
+            for line in files_blob.splitlines()
+            if line.strip()
+        ]
+        changed_requested = [file_path for file_path in requested if file_path in changed_files]
+        if not changed_requested:
+            continue
+        for source_file in changed_requested:
+            for changed_file in changed_files:
+                if changed_file in requested_set:
+                    continue
+                counts[source_file][changed_file] += 1
+                last_changed.setdefault((source_file, changed_file), date)
+
+    rows: list[dict[str, Any]] = []
+    for source_file in requested:
+        for changed_file, count in counts[source_file].most_common(limit):
+            rows.append({
+                "source_file": source_file,
+                "file": changed_file,
+                "co_change_count": count,
+                "last_changed_together": last_changed.get((source_file, changed_file), ""),
+            })
+            if len(rows) >= limit:
+                return rows
+    return rows
+
+
 
 def get_recent_changes(
     repo_path: str | Path,
@@ -205,6 +274,239 @@ def get_recent_changes(
             "date": date,
         })
     return changes
+
+
+def get_recent_changes_for_files(
+    repo_path: str | Path,
+    file_paths: list[str],
+    limit: int = 10,
+    timeout_sec: float | None = None,
+) -> list[dict[str, str]]:
+    """Return recent commits for multiple files using one git process."""
+    repo = _resolve_repo(repo_path)
+    requested = _dedupe_paths(file_paths)
+    if limit < 1 or not requested or not _is_git_repo(repo) or not _has_commits(repo):
+        return []
+
+    max_commits = max(limit, limit * len(requested))
+    result = _run_git(
+        repo,
+        [
+            "log",
+            f"--max-count={max_commits}",
+            "--date=iso-strict",
+            f"--pretty=format:{GIT_RECORD_SEPARATOR}%H{GIT_FIELD_SEPARATOR}%an"
+            f"{GIT_FIELD_SEPARATOR}%ad{GIT_FIELD_SEPARATOR}%s",
+            "--name-only",
+            "--",
+            *requested,
+        ],
+        timeout_sec=timeout_sec,
+    )
+    if not result.ok or not result.stdout.strip():
+        return []
+
+    requested_set = set(requested)
+    changes: list[dict[str, str]] = []
+    for raw_record in result.stdout.split(GIT_RECORD_SEPARATOR):
+        record = raw_record.strip()
+        if not record:
+            continue
+        header, _, files_blob = record.partition("\n")
+        fields = header.split(GIT_FIELD_SEPARATOR, 3)
+        if len(fields) != 4:
+            continue
+        commit_hash, author, date, message = fields
+        changed = {
+            line.strip()
+            for line in files_blob.splitlines()
+            if line.strip() in requested_set
+        }
+        for file_path in requested:
+            if file_path not in changed:
+                continue
+            changes.append({
+                "file_path": file_path,
+                "commit_hash": commit_hash,
+                "commit_msg": message,
+                "author": author,
+                "date": date,
+            })
+            if len(changes) >= limit:
+                return changes
+    return changes
+
+
+def get_history_context_for_files(
+    repo_path: str | Path,
+    file_paths: list[str],
+    limit: int = 10,
+    max_commits: int = 50,
+    timeout_sec: float | None = None,
+) -> dict[str, list[dict[str, Any]]]:
+    """Return recent, co-change, and attribution signals from one git log."""
+    repo = _resolve_repo(repo_path)
+    requested = _dedupe_paths(file_paths)
+    empty: dict[str, list[dict[str, Any]]] = {
+        "recent_changes": [],
+        "co_changed_files": [],
+        "blame": [],
+    }
+    if limit < 1 or not requested or max_commits < 1 or not _is_git_repo(repo) or not _has_commits(repo):
+        return empty
+
+    result = _run_git(
+        repo,
+        [
+            "log",
+            f"--max-count={max_commits}",
+            "--date=iso-strict",
+            f"--pretty=format:{GIT_RECORD_SEPARATOR}%H{GIT_FIELD_SEPARATOR}%an"
+            f"{GIT_FIELD_SEPARATOR}%ad{GIT_FIELD_SEPARATOR}%s",
+            "--name-only",
+            "--full-diff",
+            "--",
+            *requested,
+        ],
+        timeout_sec=timeout_sec,
+    )
+    if not result.ok or not result.stdout.strip():
+        return empty
+
+    requested_set = set(requested)
+    recent_changes: list[dict[str, Any]] = []
+    attribution: list[dict[str, Any]] = []
+    attributed: set[str] = set()
+    co_counts: dict[str, Counter[str]] = {file_path: Counter() for file_path in requested}
+    co_last_changed: dict[tuple[str, str], str] = {}
+
+    for raw_record in result.stdout.split(GIT_RECORD_SEPARATOR):
+        record = raw_record.strip()
+        if not record:
+            continue
+        header, _, files_blob = record.partition("\n")
+        fields = header.split(GIT_FIELD_SEPARATOR, 3)
+        if len(fields) != 4:
+            continue
+        commit_hash, author, date, message = fields
+        changed_files = [
+            line.strip()
+            for line in files_blob.splitlines()
+            if line.strip()
+        ]
+        changed_requested = [file_path for file_path in requested if file_path in changed_files]
+        if not changed_requested:
+            continue
+
+        for file_path in changed_requested:
+            if len(recent_changes) < limit:
+                recent_changes.append({
+                    "file_path": file_path,
+                    "commit_hash": commit_hash,
+                    "commit_msg": message,
+                    "author": author,
+                    "date": date,
+                })
+            if file_path not in attributed:
+                attribution.append({
+                    "file_path": file_path,
+                    "line": 1,
+                    "author": author,
+                    "date": date,
+                    "commit_hash": commit_hash,
+                    "commit_msg": message,
+                    "source": "git_log_last_change",
+                })
+                attributed.add(file_path)
+
+            for changed_file in changed_files:
+                if changed_file in requested_set:
+                    continue
+                co_counts[file_path][changed_file] += 1
+                co_last_changed.setdefault((file_path, changed_file), date)
+
+    co_changed: list[dict[str, Any]] = []
+    for source_file in requested:
+        for changed_file, count in co_counts[source_file].most_common(limit):
+            co_changed.append({
+                "source_file": source_file,
+                "file": changed_file,
+                "co_change_count": count,
+                "last_changed_together": co_last_changed.get((source_file, changed_file), ""),
+            })
+            if len(co_changed) >= limit:
+                break
+        if len(co_changed) >= limit:
+            break
+
+    return {
+        "recent_changes": recent_changes[:limit],
+        "co_changed_files": co_changed[:limit],
+        "blame": attribution[:limit],
+    }
+
+
+def get_last_change_for_files(
+    repo_path: str | Path,
+    file_paths: list[str],
+    max_commits: int = 50,
+    timeout_sec: float | None = None,
+) -> list[dict[str, Any]]:
+    """Return the newest commit touching each file using one git log process."""
+    repo = _resolve_repo(repo_path)
+    requested = _dedupe_paths(file_paths)
+    if not requested or max_commits < 1 or not _is_git_repo(repo) or not _has_commits(repo):
+        return []
+
+    result = _run_git(
+        repo,
+        [
+            "log",
+            f"--max-count={max_commits}",
+            "--date=iso-strict",
+            f"--pretty=format:{GIT_RECORD_SEPARATOR}%H{GIT_FIELD_SEPARATOR}%an"
+            f"{GIT_FIELD_SEPARATOR}%ad{GIT_FIELD_SEPARATOR}%s",
+            "--name-only",
+            "--",
+            *requested,
+        ],
+        timeout_sec=timeout_sec,
+    )
+    if not result.ok or not result.stdout.strip():
+        return []
+
+    remaining = set(requested)
+    rows: list[dict[str, Any]] = []
+    for raw_record in result.stdout.split(GIT_RECORD_SEPARATOR):
+        record = raw_record.strip()
+        if not record:
+            continue
+        header, _, files_blob = record.partition("\n")
+        fields = header.split(GIT_FIELD_SEPARATOR, 3)
+        if len(fields) != 4:
+            continue
+        commit_hash, author, date, message = fields
+        changed = {
+            line.strip()
+            for line in files_blob.splitlines()
+            if line.strip() in remaining
+        }
+        for file_path in requested:
+            if file_path not in changed:
+                continue
+            rows.append({
+                "file_path": file_path,
+                "line": 1,
+                "author": author,
+                "date": date,
+                "commit_hash": commit_hash,
+                "commit_msg": message,
+                "source": "git_log_last_change",
+            })
+            remaining.discard(file_path)
+        if not remaining:
+            break
+    return rows
 
 
 def _parse_blame_porcelain(output: str) -> list[dict[str, Any]]:
@@ -246,7 +548,11 @@ def _parse_blame_porcelain(output: str) -> list[dict[str, Any]]:
     return rows
 
 
-def _run_git(repo: Path, args: list[str]) -> GitCommandResult:
+def _run_git(
+    repo: Path,
+    args: list[str],
+    timeout_sec: float | None = None,
+) -> GitCommandResult:
     try:
         completed = subprocess.run(
             ["git", "-C", str(repo), *args],
@@ -255,7 +561,10 @@ def _run_git(repo: Path, args: list[str]) -> GitCommandResult:
             text=True,
             encoding="utf-8",
             errors="replace",
+            timeout=timeout_sec,
         )
+    except subprocess.TimeoutExpired as exc:
+        return GitCommandResult(False, exc.stdout or "", str(exc), 124)
     except OSError as exc:
         return GitCommandResult(False, "", str(exc), 127)
     return GitCommandResult(
@@ -284,6 +593,17 @@ def _has_commits(repo: Path) -> bool:
 
 def _looks_like_commit(value: str) -> bool:
     return len(value) >= 8 and all(char in "0123456789abcdef^" for char in value.lower())
+
+
+def _dedupe_paths(file_paths: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for file_path in file_paths:
+        normalized = file_path.strip().replace("\\", "/")
+        if normalized and normalized not in seen:
+            deduped.append(normalized)
+            seen.add(normalized)
+    return deduped
 
 
 def _format_unix_timestamp(value: Any) -> str:

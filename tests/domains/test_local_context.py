@@ -28,27 +28,49 @@ def test_gather_local_context_uses_repository_for_vector_sources(
         record_id="session-auth",
     )
 
-    def fake_recent_changes(
+    def fake_history_context(
         repo_path: str,
-        file_path: str,
+        files: list[str],
         limit: int,
-    ) -> list[dict[str, Any]]:
+        max_commits: int,
+        timeout_sec: float,
+    ) -> dict[str, list[dict[str, Any]]]:
         assert repo_path == str(tmp_path)
-        assert file_path == "src/auth/tokens.py"
+        assert files == ["src/auth/tokens.py"]
         assert limit == 5
-        return [{"commit_hash": "abc123", "commit_msg": "Tighten refresh validation"}]
-
-    def fake_co_changed(repo_path, file_path, limit, max_commits):
         assert max_commits == 50
-        return [{"file": "tests/auth/test_tokens.py", "co_change_count": 4}]
+        assert timeout_sec == local_context._HISTORY_CONTEXT_TIMEOUT_SECONDS
+        return {
+            "recent_changes": [
+                {
+                    "file_path": "src/auth/tokens.py",
+                    "commit_hash": "abc123",
+                    "commit_msg": "Tighten refresh validation",
+                }
+            ],
+            "co_changed_files": [
+                {
+                    "source_file": "src/auth/tokens.py",
+                    "file": "tests/auth/test_tokens.py",
+                    "co_change_count": 4,
+                }
+            ],
+            "blame": [
+                {
+                    "file_path": "src/auth/tokens.py",
+                    "line": 1,
+                    "commit_hash": "abc123",
+                    "author": "Dev",
+                    "source": "git_log_last_change",
+                }
+            ],
+        }
 
-    def fake_blame(repo_path, file_path, start, end):
-        assert (start, end) == (1, 2)
-        return [{"line": 1, "commit_hash": "abc123", "author": "Dev"}]
-
-    monkeypatch.setattr(local_context.git_indexer, "get_recent_changes", fake_recent_changes)
-    monkeypatch.setattr(local_context.git_indexer, "get_co_changed", fake_co_changed)
-    monkeypatch.setattr(local_context.git_indexer, "get_blame_info", fake_blame)
+    monkeypatch.setattr(
+        local_context.git_indexer,
+        "get_history_context_for_files",
+        fake_history_context,
+    )
     target = tmp_path / "src" / "auth" / "tokens.py"
     target.parent.mkdir(parents=True)
     target.write_text("one\ntwo\n", encoding="utf-8")
@@ -69,6 +91,7 @@ def test_gather_local_context_uses_repository_for_vector_sources(
     assert result["recent_changes"][0]["file_path"] == "src/auth/tokens.py"
     assert result["co_changed_files"][0]["source_file"] == "src/auth/tokens.py"
     assert result["blame"][0]["file_path"] == "src/auth/tokens.py"
+    assert result["blame"][0]["source"] == "git_log_last_change"
 
 
 def test_select_context_files_prefers_explicit_then_graph_sources() -> None:

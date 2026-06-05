@@ -19,18 +19,31 @@
 `codebase-memory-mcp.exe` 解压到这里，Codebase Brain 再调用它完成符号搜索、调用链和代码图谱
 索引。不要把 sidecar 单独配置成第二个 MCP Server。
 
-### 仓库路径要求
+### 仓库路径和图谱路径
 
-当前 Windows sidecar `v0.7.0` 无法索引包含中文字符的仓库路径。本地约定、会话记忆和 Git
-只读工具仍可使用中文路径，但代码图谱会失败。
+Codebase Brain 本身支持中文路径。本地约定、会话记忆和 Git 只读工具可以直接使用中文业务
+工作区。部分 Windows 版 `codebase-memory-mcp` 在中文路径 discover 阶段可能返回 0 个文件；
+这时不要强迫团队改工作区，而是给图谱准备一个英文路径副本或 junction，并配置 repo alias。
 
-需要完整图谱能力时，请把业务仓库放在纯英文路径，例如：
+推荐布局：
 
 ```text
-D:\projects\django-test
+D:\qoder工作区\django-test      # Qoder 真实工作区，可以是中文路径
+D:\projects\django-test        # 给 sidecar 使用的英文路径副本或 junction
 ```
 
-不要使用 `D:\中文目录\django-test`。这是 sidecar 的当前限制，不是 Python 安装问题。
+MCP 配置中加入：
+
+```json
+{
+  "env": {
+    "CODEBRAIN_DEFAULT_PROJECT": "D:\\qoder工作区\\django-test",
+    "CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES": "D:\\qoder工作区\\django-test=D:\\projects\\django-test"
+  }
+}
+```
+
+如果项目本身已经在纯英文路径，例如 `D:\projects\ruoyi-vue-pro`，不需要 alias。
 
 ## 第一次安装
 
@@ -43,6 +56,7 @@ cd D:\cb
 
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 `
   -ProjectRoot "D:\项目\你的业务仓库" `
+  -GraphProjectRoot "D:\projects\你的业务仓库" `
   -SidecarPath "$env:USERPROFILE\Downloads\codebase-memory-mcp-windows-amd64.zip"
 ```
 
@@ -54,6 +68,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 `
 4. 从 ZIP 解压 sidecar，或将 EXE 复制到 `D:\cb\sidecar`。
 5. 生成 `D:\cb\.local-configs\<业务仓库名>-mcp.json`。
 6. 执行基础安装检查。
+
+`-GraphProjectRoot` 可选。只有业务工作区是中文路径、但图谱需要使用英文路径副本时才传入。
+脚本会自动生成 `CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES`。
 
 第一次安装需要联网下载 Python 依赖和 embedding 模型，可能需要较长时间。
 生成的 MCP JSON 包含个人电脑的绝对路径，保存在 Codebase Brain 安装目录下的本地忽略目录，
@@ -115,7 +132,8 @@ cd D:\cb
 git pull --ff-only origin main
 
 powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 `
-  -ProjectRoot "D:\项目\你的业务仓库"
+  -ProjectRoot "D:\项目\你的业务仓库" `
+  -GraphProjectRoot "D:\projects\你的业务仓库"
 ```
 
 更新后重启 Qoder 或 Cursor。

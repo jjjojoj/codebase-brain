@@ -3,8 +3,8 @@
 本文说明如何在 Windows 11 的 Cursor 中接入 Codebase Brain。首次安装 Codebase Brain 前，
 先完成 [`Windows安装指南.md`](Windows安装指南.md)。
 
-需要代码图谱能力时，业务仓库路径必须为纯英文路径；Windows sidecar `v0.7.0` 暂不支持中文
-仓库路径。
+需要代码图谱能力时，推荐让 sidecar 使用纯英文路径。业务工作区可以是中文路径，但要在 MCP
+配置中加入 `CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES`，把中文工作区映射到英文图谱路径。
 
 ## 1. 获取生成的 MCP 配置
 
@@ -23,11 +23,13 @@ D:\cb\.local-configs\<业务仓库名>-mcp.json
       "command": "D:\\cb\\.venv\\Scripts\\codebrain.exe",
       "args": ["serve"],
       "env": {
-        "CODEBRAIN_DB_PATH": "D:\\项目\\业务仓库\\.codebrain\\codebrain_full.db",
-        "CODEBRAIN_DEFAULT_CONVENTIONS_PATH": "D:\\项目\\业务仓库\\.codebrain\\conventions",
-        "CODEBRAIN_CODEBASE_MEMORY_BINARY": "D:\\cb\\sidecar\\codebase-memory-mcp.exe",
-        "CODEBRAIN_EMBEDDER_MODEL": "paraphrase-multilingual-MiniLM-L12-v2"
-      }
+	        "CODEBRAIN_DB_PATH": "D:\\项目\\业务仓库\\.codebrain\\codebrain_full.db",
+	        "CODEBRAIN_DEFAULT_CONVENTIONS_PATH": "D:\\项目\\业务仓库\\.codebrain\\conventions",
+	        "CODEBRAIN_DEFAULT_PROJECT": "D:\\项目\\业务仓库",
+	        "CODEBRAIN_CODEBASE_MEMORY_BINARY": "D:\\cb\\sidecar\\codebase-memory-mcp.exe",
+	        "CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES": "D:\\项目\\业务仓库=D:\\projects\\业务仓库",
+	        "CODEBRAIN_EMBEDDER_MODEL": "paraphrase-multilingual-MiniLM-L12-v2"
+	      }
     }
   }
 }
@@ -83,6 +85,8 @@ Codebase Brain 的数据库和约定路径与业务仓库绑定，推荐使用�
 | Cursor 看不到工具 | 检查生成 JSON 中的绝对路径，完全退出并重启 Cursor |
 | `codebrain.exe` 安装或升级失败 | 关闭 Cursor，确认没有 `codebrain.exe` 进程后重新运行安装脚本 |
 | 图谱不可用 | 检查 `D:\cb\sidecar\codebase-memory-mcp.exe` 是否存在 |
+| 返回 Cursor/IDE 自身代码 | 设置 `CODEBRAIN_DEFAULT_PROJECT` 为业务仓库绝对路径 |
+| 中文路径图谱为空 | 配置 `CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES` 到英文路径副本 |
 | 业务数据写错目录 | 检查 `CODEBRAIN_DB_PATH` 和 `CODEBRAIN_DEFAULT_CONVENTIONS_PATH` |
 | 第一次语义搜索很慢 | 等待本地 embedding 模型首次下载和加载 |
 

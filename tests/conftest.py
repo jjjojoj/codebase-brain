@@ -40,9 +40,11 @@ def temp_db_path() -> str:
 def test_settings(temp_db_path: str) -> Settings:
     """Settings pointing at a temp DB."""
     return Settings(
+        _env_file=None,
         db_path=temp_db_path,
         embedder_provider="sentence-transformers",
         embedder_model="all-MiniLM-L6-v2",
+        codebase_memory_repo_aliases="",
     )
 
 

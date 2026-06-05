@@ -55,11 +55,13 @@ class CodebaseMemoryAdapter:
         binary: str = "codebase-memory-mcp",
         timeout_sec: int = 120,
         search_timeout_sec: int = 15,
+        repo_aliases: str | dict[str, str] | None = None,
         runner: Runner | None = None,
     ) -> None:
         self.binary = binary
         self.timeout_sec = timeout_sec
         self.search_timeout_sec = min(search_timeout_sec, timeout_sec)
+        self.repo_aliases = _parse_repo_aliases(repo_aliases)
         self._runner = runner or _run_subprocess
 
     def status(self) -> dict[str, Any]:
@@ -72,6 +74,7 @@ class CodebaseMemoryAdapter:
             "resolved_binary": resolved,
             "timeout_sec": self.timeout_sec,
             "search_timeout_sec": self.search_timeout_sec,
+            "repo_aliases": self.repo_aliases,
             "tools": [
                 "index_repository",
                 "search_graph",
@@ -87,8 +90,9 @@ class CodebaseMemoryAdapter:
         persistence: bool = False,
     ) -> dict[str, Any]:
         """Index a repository through the sidecar graph engine."""
+        graph_repo_path = self._graph_repo_path(repo_path)
         args: dict[str, Any] = {
-            "repo_path": _resolve_path(repo_path),
+            "repo_path": _resolve_path(graph_repo_path),
             "mode": mode,
             "persistence": persistence,
         }
@@ -102,11 +106,10 @@ class CodebaseMemoryAdapter:
     ) -> dict[str, Any]:
         """Search graph symbols matching a name pattern."""
         args = {
-            "project": project_name_from_path(repo_path),
             "name_pattern": symbol,
             "limit": limit,
         }
-        return self.call("search_graph", args, timeout_sec=self.search_timeout_sec).as_dict()
+        return self._call_with_project_aliases("search_graph", args, repo_path).as_dict()
 
     def trace_call_path(
         self,
@@ -116,12 +119,49 @@ class CodebaseMemoryAdapter:
     ) -> dict[str, Any]:
         """Trace callers and callees for a symbol."""
         args = {
-            "project": project_name_from_path(repo_path),
             "function_name": symbol,
             "direction": "both",
             "depth": depth,
         }
-        return self.call("trace_call_path", args, timeout_sec=self.search_timeout_sec).as_dict()
+        return self._call_with_project_aliases("trace_call_path", args, repo_path).as_dict()
+
+    def _call_with_project_aliases(
+        self,
+        tool: str,
+        args: dict[str, Any],
+        repo_path: str,
+    ) -> SidecarResult:
+        aliases = self._project_aliases(repo_path)
+        first_result: SidecarResult | None = None
+        last_result: SidecarResult | None = None
+        for project in aliases:
+            result = self.call(
+                tool,
+                {"project": project, **args},
+                timeout_sec=self.search_timeout_sec,
+            )
+            if first_result is None:
+                first_result = result
+            last_result = result
+            if _sidecar_result_has_payload(result):
+                return _with_alias_metadata(result, aliases, project)
+        if first_result is None:
+            return self.call(tool, args, timeout_sec=self.search_timeout_sec)
+        return _with_alias_metadata(last_result or first_result, aliases, aliases[-1])
+
+    def _graph_repo_path(self, repo_path: str) -> str:
+        key = _normalize_alias_key(repo_path)
+        return self.repo_aliases.get(key, repo_path)
+
+    def _project_aliases(self, repo_path: str) -> list[str]:
+        paths = [repo_path]
+        graph_repo_path = self._graph_repo_path(repo_path)
+        if graph_repo_path != repo_path:
+            paths.append(graph_repo_path)
+        aliases: list[str] = []
+        for path in paths:
+            aliases.extend(project_name_aliases_from_path(path))
+        return _dedupe_text(aliases)
 
     def call(
         self,
@@ -230,11 +270,76 @@ def _resolve_path(path: str) -> str:
 
 def project_name_from_path(path: str) -> str:
     """Match codebase-memory-mcp's project name derived from repo path."""
+    return _project_name_from_path(path, unicode_safe=True)
+
+
+def project_name_aliases_from_path(path: str) -> list[str]:
+    """Return current and legacy sidecar project names for one repo path."""
+    return _dedupe_text([
+        _project_name_from_path(path, unicode_safe=True),
+        _project_name_from_path(path, unicode_safe=False),
+    ])
+
+
+def legacy_project_name_from_path(path: str) -> str:
+    """Return the pre-Unicode project name for existing sidecar databases."""
+    return _project_name_from_path(path, unicode_safe=False)
+
+
+def repo_alias_source_paths(value: str | dict[str, str] | None) -> list[str]:
+    """Return configured source paths from a repo alias mapping."""
+    if not value:
+        return []
+    if isinstance(value, dict):
+        return [
+            str(source)
+            for source, target in value.items()
+            if str(source).strip() and str(target).strip()
+        ]
+    sources: list[str] = []
+    for item in value.split(";"):
+        source, separator, target = item.partition("=>")
+        if not separator:
+            source, separator, target = item.partition("=")
+        if separator and source.strip() and target.strip():
+            sources.append(source.strip())
+    return sources
+
+
+def _parse_repo_aliases(value: str | dict[str, str] | None) -> dict[str, str]:
+    if not value:
+        return {}
+    if isinstance(value, dict):
+        return {
+            _normalize_alias_key(source): target
+            for source, target in value.items()
+            if str(source).strip() and str(target).strip()
+        }
+    aliases: dict[str, str] = {}
+    for item in value.split(";"):
+        source, separator, target = item.partition("=>")
+        if not separator:
+            source, separator, target = item.partition("=")
+        if not separator:
+            continue
+        source = source.strip()
+        target = target.strip()
+        if source and target:
+            aliases[_normalize_alias_key(source)] = target
+    return aliases
+
+
+def _normalize_alias_key(path: str) -> str:
+    return str(path).strip().replace("\\", "/").rstrip("/").lower()
+
+
+def _project_name_from_path(path: str, *, unicode_safe: bool) -> str:
     resolved = _resolve_path(path)
     chars: list[str] = []
     previous = ""
     for char in resolved:
-        safe = char.isascii() and (char.isalnum() or char in "._-")
+        safe = (char.isalnum() if unicode_safe else char.isascii() and char.isalnum())
+        safe = safe or char in "._-"
         normalized = char if safe else "-"
         if (normalized == "-" and previous == "-") or (
             normalized == "." and previous == "."
@@ -245,6 +350,65 @@ def project_name_from_path(path: str) -> str:
 
     candidate = "".join(chars).lstrip("-.").rstrip("-")
     return candidate or "root"
+
+
+def _sidecar_result_has_payload(result: SidecarResult) -> bool:
+    if result.ok is not True:
+        return False
+    if result.text.strip():
+        return True
+    return _has_payload(result.data)
+
+
+def _has_payload(value: Any) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, list):
+        return bool(value)
+    if isinstance(value, dict):
+        for empty_key in ("results", "paths", "callers", "callees", "nodes", "edges"):
+            if empty_key in value:
+                return _has_payload(value.get(empty_key))
+        total = value.get("total")
+        if isinstance(total, int):
+            return total > 0
+        return any(_has_payload(item) for item in value.values())
+    return bool(value)
+
+
+def _with_alias_metadata(
+    result: SidecarResult,
+    aliases: list[str],
+    project: str,
+) -> SidecarResult:
+    if len(aliases) < 2:
+        return result
+    data = result.data
+    if isinstance(data, dict):
+        data = {
+            **data,
+            "project_alias_used": project,
+            "project_aliases_tried": aliases,
+        }
+    return SidecarResult(
+        ok=result.ok,
+        status=result.status,
+        tool=result.tool,
+        command=result.command,
+        data=data,
+        text=result.text,
+        error=result.error,
+    )
+
+
+def _dedupe_text(values: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if value and value not in seen:
+            deduped.append(value)
+            seen.add(value)
+    return deduped
 
 
 def _parse_sidecar_output(stdout: str) -> Any:

@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     codebase_memory_binary: str = "codebase-memory-mcp"
     codebase_memory_timeout_sec: int = 120
     codebase_memory_search_timeout_sec: int = 15
+    codebase_memory_repo_aliases: str = ""
 
     # Project
     default_project: str = ""

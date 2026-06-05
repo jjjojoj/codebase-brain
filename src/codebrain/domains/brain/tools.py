@@ -6,11 +6,11 @@ client to know which low-level convention, memory, git, or graph tool to call.
 
 from __future__ import annotations
 
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 import time
 from typing import Any
 
-from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter
+from codebrain.adapters.codebase_memory import CodebaseMemoryAdapter, repo_alias_source_paths
 from codebrain.config import Settings
 from codebrain.core.di import get_container
 from codebrain.core.repository import Repository
@@ -35,7 +35,8 @@ def brain_context_for_task(
     """
     task = _require_text(task, "task")
     top_k = _bounded_int(top_k, "top_k", minimum=1, maximum=20)
-    resolved_repo = _resolve_repo_path(repo_path)
+    settings = get_container().settings
+    resolved_repo = _resolve_repo_path(repo_path, settings)
     files = _clean_text_list(files)
     symbols = _clean_text_list(symbols)
 
@@ -89,6 +90,16 @@ def _build_context_pack(
         repository=_make_repository(),
     )
     result = context_pack.assemble_context_pack(task=task, local=local, graph=graph)
+    auto_sync = _maybe_queue_auto_sync(result, repo_path=repo_path)
+    if auto_sync is not None:
+        result["auto_sync"] = auto_sync
+        result["warnings"].append(
+            "context pack was empty; queued brain_sync_project(force=true)"
+        )
+        result["suggested_next_steps"].insert(
+            0,
+            "poll brain_index_job_status(job_id) for the queued auto-sync job",
+        )
     result["timings"] = {
         "graph_seconds": graph_seconds,
         "graph_context": graph.get("timings", {}),
@@ -97,6 +108,23 @@ def _build_context_pack(
         "total_seconds": round(time.perf_counter() - started, 3),
     }
     return result
+
+
+def _maybe_queue_auto_sync(result: dict[str, Any], *, repo_path: str) -> dict[str, Any] | None:
+    status = result.get("status")
+    if not isinstance(status, dict):
+        return None
+    if status.get("local") != "empty" or status.get("graph") != "empty":
+        return None
+    sync = brain_sync_project(repo_path=repo_path, async_mode=True, force=True)
+    job = sync.get("job")
+    if not isinstance(job, dict):
+        return None
+    return {
+        "status": sync.get("status", "unknown"),
+        "repo_path": sync.get("repo_path", repo_path),
+        "job": job,
+    }
 
 
 def brain_status(repo_path: str = ".") -> dict[str, Any]:
@@ -108,7 +136,7 @@ def brain_status(repo_path: str = ".") -> dict[str, Any]:
         "ok": True,
         "name": "codebase-brain",
         "profile": "composition-first",
-        "repo_path": _resolve_repo_path(repo_path),
+        "repo_path": _resolve_repo_path(repo_path, settings),
         "graph": graph.status(),
         "knowledge": {
             "vector_store_backend": settings.vector_store_backend,
@@ -155,8 +183,9 @@ def brain_sync_status(
 ) -> dict[str, Any]:
     """Automatically check after meaningful code changes before refreshing project knowledge."""
     settings = get_container().settings
+    resolved_repo = _resolve_repo_path(repo_path, settings)
     return indexing.sync_status(
-        repo_path,
+        resolved_repo,
         include_patterns=include_patterns,
         exclude_patterns=exclude_patterns,
         max_file_size_mb=settings.index_max_file_size_mb,
@@ -238,7 +267,7 @@ def brain_index_project(
     """Use only for initial setup or explicit re-indexing; this synchronous call may be slow."""
     container = get_container()
     settings = container.settings
-    resolved_repo = _resolve_repo_path(repo_path)
+    resolved_repo = _resolve_repo_path(repo_path, settings)
     graph_mode = _validate_graph_mode(graph_mode)
     graph = _make_codebase_memory_adapter(settings)
     graph_result = graph.index_repository(
@@ -278,7 +307,7 @@ def brain_explain_symbol(
 
     container = get_container()
     graph = _make_codebase_memory_adapter(container.settings)
-    resolved_repo = _resolve_repo_path(repo_path)
+    resolved_repo = _resolve_repo_path(repo_path, container.settings)
     search_result = graph.search_graph(symbol=symbol, repo_path=resolved_repo, limit=top_k)
     trace_result = graph.trace_call_path(symbol=symbol, repo_path=resolved_repo, depth=depth)
 
@@ -311,6 +340,7 @@ def _make_codebase_memory_adapter(settings: Settings) -> CodebaseMemoryAdapter:
         binary=settings.codebase_memory_binary,
         timeout_sec=settings.codebase_memory_timeout_sec,
         search_timeout_sec=settings.codebase_memory_search_timeout_sec,
+        repo_aliases=settings.codebase_memory_repo_aliases,
     )
 
 
@@ -369,8 +399,52 @@ def _milvus_status(settings: Settings) -> str:
     return "configured"
 
 
-def _resolve_repo_path(repo_path: str) -> str:
-    return str(Path(repo_path).expanduser().resolve())
+def _resolve_repo_path(repo_path: str, settings: Settings | None = None) -> str:
+    target = _default_repo_path(settings) if _is_default_repo_arg(repo_path) else repo_path
+    if _looks_like_windows_path(target):
+        return str(PureWindowsPath(target))
+    return str(Path(target).expanduser().resolve())
+
+
+def _is_default_repo_arg(repo_path: str) -> bool:
+    return not isinstance(repo_path, str) or repo_path.strip() in {"", "."}
+
+
+def _default_repo_path(settings: Settings | None) -> str:
+    if settings is None:
+        return "."
+    if settings.default_project.strip():
+        return settings.default_project.strip()
+    aliases = repo_alias_source_paths(settings.codebase_memory_repo_aliases)
+    if aliases:
+        return aliases[0]
+    inferred = _infer_repo_from_project_path(settings.db_path)
+    if inferred:
+        return inferred
+    inferred = _infer_repo_from_project_path(settings.default_conventions_path)
+    if inferred:
+        return inferred
+    return "."
+
+
+def _infer_repo_from_project_path(value: str) -> str:
+    if not value or not isinstance(value, str):
+        return ""
+    is_windows = _looks_like_windows_path(value)
+    path = PureWindowsPath(value) if is_windows else Path(value).expanduser()
+    parts = path.parts
+    if ".codebrain" not in parts:
+        return ""
+    index = parts.index(".codebrain")
+    if index == 0:
+        return ""
+    if is_windows:
+        return str(PureWindowsPath(*parts[:index]))
+    return str(Path(*parts[:index]))
+
+
+def _looks_like_windows_path(value: str) -> bool:
+    return "\\" in value or (len(value) >= 2 and value[1] == ":")
 
 
 def _default_conventions_path(settings: Settings, resolved_repo: str) -> str:

@@ -48,9 +48,40 @@ def test_gather_graph_context_extracts_symbol_like_task_keywords() -> None:
         adapter=adapter,
     )
 
-    assert adapter.queries == ["ModelBackend", "authentication"]
-    assert adapter.limits == [25, 25]
+    assert adapter.queries == [
+        "ModelBackend",
+        "authenticate",
+        "authentication",
+        "token",
+        "permission",
+        "auth",
+    ]
+    assert adapter.limits == [25, 25, 25, 25, 25, 25]
     assert result["status"] == "ready"
+
+
+def test_gather_graph_context_maps_rate_limit_domain_terms() -> None:
+    adapter = RecordingAdapter()
+
+    gather_graph_context(
+        task="understand rate limiting logic",
+        top_k=5,
+        adapter=adapter,
+    )
+
+    assert adapter.queries == ["throttle", "rate_limit", "RateLimiter"]
+
+
+def test_gather_graph_context_filters_generic_task_verbs() -> None:
+    adapter = RecordingAdapter()
+
+    gather_graph_context(
+        task="handle process validate check payment callback",
+        top_k=5,
+        adapter=adapter,
+    )
+
+    assert adapter.queries == ["payment", "callback"]
 
 
 def test_gather_graph_context_prefers_explicit_symbols() -> None:
