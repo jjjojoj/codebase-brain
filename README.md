@@ -205,7 +205,7 @@ tags: [auth, errors]
 认证相关代码返回明确的 AuthError 类型，不要跨模块边界抛出通用异常。
 ```
 
-让 Qoder、Cursor、Codex 或其它 AI 从框架/业务源码提取约定前，先让它读取 `templates/conventions/EXTRACTION-GUIDE.md`。这个模板要求只提取开发者应该遵守的模式，不把框架内部实现细节写成约定，并且必须从测试文件中提取测试编写模式。
+让 Qoder、Cursor、Codex 或其它 AI 从框架/业务源码提取约定时，只提取开发者应该遵守的模式，不要把框架内部实现细节写成约定；如果项目有测试，也应提取测试编写模式。
 
 索引约定：
 

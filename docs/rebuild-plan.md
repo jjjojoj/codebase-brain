@@ -208,7 +208,6 @@ The output must be compact, cited, and ranked. Do not return unbounded snippets.
 
 Deliverables:
 
-- `DESIGN.md`
 - `docs/rebuild-plan.md`
 - Updated README that explains Codebase Brain 2.0 honestly.
 
