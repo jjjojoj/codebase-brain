@@ -6,6 +6,10 @@
 需要代码图谱能力时，推荐让 sidecar 使用纯英文路径。业务工作区可以是中文路径，但要在 MCP
 配置中加入 `CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES`，把中文工作区映射到英文图谱路径。
 
+Cursor 只需要配置 `codebase-brain` 这一个 MCP Server。不要把
+`D:\cb\sidecar\codebase-memory-mcp.exe` 单独添加为第二个 Server；如果用 sidecar 自带安装脚本，
+请传 `--skip-config`，避免它自动注册到 Cursor。
+
 ## 1. 获取生成的 MCP 配置
 
 安装脚本会生成：
@@ -45,7 +49,11 @@ Cursor 官方支持两种 `mcp.json` 位置：
 
 Codebase Brain 的数据库和约定路径与业务仓库绑定，推荐使用项目级配置。创建
 `D:\projects\django-test\.cursor\mcp.json`，从安装脚本生成的 JSON 中复制 `command`、
-`args` 和 `env`。生成配置中的 `timeout` 是 Qoder 使用的扩展字段，Cursor 配置中应省略。
+`args` 和 `env`。
+
+注意：安装脚本生成的 JSON 可能包含 `"timeout": 300000`。这是 Qoder 使用的扩展字段，Cursor
+配置中必须删除，否则可能导致配置解析或行为异常。
+
 保存后完全重启 Cursor。
 
 也可以打开 Cursor Settings 的 MCP 页面添加同一配置。Cursor 版本之间的设置入口可能变化，
@@ -83,6 +91,7 @@ Codebase Brain 的数据库和约定路径与业务仓库绑定，推荐使用�
 | 症状 | 处理 |
 | --- | --- |
 | Cursor 看不到工具 | 检查生成 JSON 中的绝对路径，完全退出并重启 Cursor |
+| Cursor 配置从 Qoder 复制后异常 | 删除 Qoder 专用的 `timeout` 字段 |
 | `codebrain.exe` 安装或升级失败 | 关闭 Cursor，确认没有 `codebrain.exe` 进程后重新运行安装脚本 |
 | 图谱不可用 | 检查 `D:\cb\sidecar\codebase-memory-mcp.exe` 是否存在 |
 | 返回 Cursor/IDE 自身代码 | 设置 `CODEBRAIN_DEFAULT_PROJECT` 为业务仓库绝对路径 |

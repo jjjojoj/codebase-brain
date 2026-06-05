@@ -53,6 +53,8 @@ D:\projects\django-test\
 Windows PowerShell 中执行安装脚本：
 
 安装脚本支持 Python 3.11+，优先使用 3.12；Windows 只有 Python 3.11 时也可以正常部署。
+脚本默认 embedding 模型是 `paraphrase-multilingual-MiniLM-L12-v2`，约 470MB，适合中文或中英混合项目；
+如果只需要英文轻量模型，传 `-EmbedderModel all-MiniLM-L6-v2`。
 
 ```powershell
 git clone https://github.com/jjjojoj/codebase-brain.git D:\cb
@@ -89,6 +91,13 @@ powershell -ExecutionPolicy Bypass -File D:\cb\scripts\verify-qoder-windows.ps1 
 
 ## 4. Qoder 配置
 
+推荐优先使用项目级配置：在业务仓库根目录创建 `.qoder\mcp.json`，把安装脚本生成的
+`D:\cb\.local-configs\<业务仓库名>-mcp.json` 内容复制进去。这样每个业务项目可以带自己的
+`CODEBRAIN_DB_PATH`、`CODEBRAIN_DEFAULT_PROJECT` 和 repo alias，多项目切换时不需要反复改全局设置。
+
+如果当前 Qoder 版本没有自动加载项目级 `.qoder\mcp.json`，再把同一段配置放到 Qoder 实际生效的全局
+MCP 配置文件中。无论放在哪个位置，AI 客户端只应配置一个 `codebase-brain` MCP Server。
+
 ```json
 {
   "mcpServers": {
@@ -112,6 +121,9 @@ powershell -ExecutionPolicy Bypass -File D:\cb\scripts\verify-qoder-windows.ps1 
 Qoder 可能同时存在 SharedClientCache 和 `extension/local/mcp.json`。当前实测真正生效的是
 `extension/local/mcp.json`，其中 `"timeout": 300` 表示 300 秒，而共享配置中的
 `300000` 表示毫秒。升级或排障时必须检查实际生效文件，不能只看 UI 或共享缓存。
+
+`"timeout": 300000` 是 Qoder 专用字段，用于避免长索引任务被过早切断。不要把带 `timeout` 的
+Qoder 配置原样复制到 Cursor；Cursor 配置只保留 `command`、`args` 和 `env`。
 
 不要把数据库、模型缓存或业务仓库放到 `D:\cb`。不要启用远程 embedding，除非团队已经完成
 隐私评审。

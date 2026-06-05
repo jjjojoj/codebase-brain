@@ -48,13 +48,20 @@ Codebase Brain 是给 AI 编程工具使用的项目知识层 MCP Server。它�
 
 ## Quick Start
 
-需要 Python 3.11+，推荐 Python 3.12。Linux/WSL 上不要假设 `python3` 一定满足版本要求；很多发行版的 `python3` 仍可能指向 Python 3.10，所以 Quick Start 明确使用 `python3.12`。
+需要 Python 3.11+，推荐 Python 3.12。Linux/WSL 上不要假设 `python3` 一定满足版本要求；很多发行版的 `python3` 仍可能指向 Python 3.10。下面示例使用 `python3.11` 和 Windows Python Launcher 的 `py -3`，只要实际版本 >= 3.11 即可。
 
 ```bash
 git clone https://github.com/jjjojoj/codebase-brain.git
 cd codebase-brain
-python3.12 -m venv .venv
+python3.11 -m venv .venv
 .venv/bin/pip install -e ".[local]"
+
+export PROJECT_ROOT=/ABS/PATH/your-project
+mkdir -p "$PROJECT_ROOT/.codebrain/conventions"
+export CODEBRAIN_DB_PATH="$PROJECT_ROOT/.codebrain/codebrain_full.db"
+export CODEBRAIN_DEFAULT_CONVENTIONS_PATH="$PROJECT_ROOT/.codebrain/conventions"
+export CODEBRAIN_DEFAULT_PROJECT="$PROJECT_ROOT"
+
 .venv/bin/codebrain info
 ```
 
@@ -63,14 +70,23 @@ Windows PowerShell:
 ```powershell
 git clone https://github.com/jjjojoj/codebase-brain.git C:\codebase-brain
 cd C:\codebase-brain
-py -3.12 -m venv .venv
+py -3 -m venv .venv
 .\.venv\Scripts\pip install -e ".[local]"
+
+$project = "D:\projects\ruoyi-vue-pro"
+New-Item -ItemType Directory -Force "$project\.codebrain\conventions" | Out-Null
+$env:CODEBRAIN_DB_PATH = "$project\.codebrain\codebrain_full.db"
+$env:CODEBRAIN_DEFAULT_CONVENTIONS_PATH = "$project\.codebrain\conventions"
+$env:CODEBRAIN_DEFAULT_PROJECT = $project
+
 .\.venv\Scripts\codebrain.exe info
 ```
 
+`CODEBRAIN_DB_PATH`、`CODEBRAIN_DEFAULT_CONVENTIONS_PATH` 和 `CODEBRAIN_DEFAULT_PROJECT` 是手动部署时的关键变量。缺少它们时，`codebrain info` 只能证明程序可启动，数据库会落到用户目录下的默认 `.codebrain`，并不代表已经绑定到业务仓库。
+
 `local` extra 会安装 `sentence-transformers`。第一次启动时模型可能需要下载；公司私有代码或敏感仓库建议保持这个本地方案。
 
-首次运行可能提示 `unauthenticated requests to HF Hub`。可以设置 `HF_TOKEN` 提高 Hugging Face Hub 下载稳定性和限额，但不是必需项；默认模型 `all-MiniLM-L6-v2` 约 90MB。
+首次运行可能提示 `unauthenticated requests to HF Hub`。可以设置 `HF_TOKEN` 提高 Hugging Face Hub 下载稳定性和限额，但不是必需项。包内默认模型是 `all-MiniLM-L6-v2`，约 90MB，适合英文为主的轻量部署；Windows 安装脚本默认使用 `paraphrase-multilingual-MiniLM-L12-v2`，约 470MB，适合中文或中英混合项目。想让脚本使用轻量模型时传 `-EmbedderModel all-MiniLM-L6-v2`。
 
 `minimal` extra 不安装 embedding 依赖，只适合 CI、查看配置、启动 MCP 工具面或验证空项目路径。真实索引约定、语义搜索和会话记忆召回仍然需要 `.[local]`，或把 `CODEBRAIN_EMBEDDER_PROVIDER` 显式配置为团队批准的本地 Ollama。
 
@@ -109,6 +125,8 @@ py -3.12 -m venv .venv
 ```bash
 codebase-memory-mcp --version
 ```
+
+如果使用 `codebase-memory-mcp` 自带的安装脚本，请传 `--skip-config`。在 Codebase Brain 架构里，sidecar 由 `codebrain serve` 内部调用，不应再把 sidecar 注册成第二个 MCP Server。
 
 如果二进制不在 `PATH`，在 MCP 配置里设置：
 

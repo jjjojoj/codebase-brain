@@ -19,6 +19,11 @@
 `codebase-memory-mcp.exe` 解压到这里，Codebase Brain 再调用它完成符号搜索、调用链和代码图谱
 索引。不要把 sidecar 单独配置成第二个 MCP Server。
 
+如果你用 `codebase-memory-mcp` 自带的 `install.ps1` 安装 sidecar，必须加 `--skip-config`。
+否则 sidecar 会把自己注册成独立 MCP Server，和 Codebase Brain 推荐的单一入口冲突。正确结构是：
+AI 客户端只连接 `codebase-brain`，`codebrain.exe serve` 再内部调用
+`D:\cb\sidecar\codebase-memory-mcp.exe`。
+
 ### 仓库路径和图谱路径
 
 Codebase Brain 本身支持中文路径。本地约定、会话记忆和 Git 只读工具可以直接使用中文业务
@@ -66,13 +71,23 @@ powershell -ExecutionPolicy Bypass -File .\scripts\setup-windows.ps1 `
 2. 安装 Codebase Brain 和本地 embedding 依赖。
 3. 在业务仓库创建 `.codebrain\conventions`。
 4. 从 ZIP 解压 sidecar，或将 EXE 复制到 `D:\cb\sidecar`。
-5. 生成 `D:\cb\.local-configs\<业务仓库名>-mcp.json`。
-6. 执行基础安装检查。
+5. 写入 `CODEBRAIN_DB_PATH`、`CODEBRAIN_DEFAULT_CONVENTIONS_PATH` 和
+   `CODEBRAIN_DEFAULT_PROJECT`，确保数据库和默认仓库都绑定到业务项目。
+6. 生成 `D:\cb\.local-configs\<业务仓库名>-mcp.json`。
+7. 执行基础安装检查。
 
 `-GraphProjectRoot` 可选。只有业务工作区是中文路径、但图谱需要使用英文路径副本时才传入。
 脚本会自动生成 `CODEBRAIN_CODEBASE_MEMORY_REPO_ALIASES`。
 
-第一次安装需要联网下载 Python 依赖和 embedding 模型，可能需要较长时间。
+第一次安装需要联网下载 Python 依赖和 embedding 模型，可能需要较长时间。脚本默认模型是
+`paraphrase-multilingual-MiniLM-L12-v2`，约 470MB，适合中文或中英混合项目。如果项目只需要英文轻量模型，可以加：
+
+```powershell
+-EmbedderModel all-MiniLM-L6-v2
+```
+
+这会与 README 手动 Quick Start 的轻量默认模型保持一致。
+
 生成的 MCP JSON 包含个人电脑的绝对路径，保存在 Codebase Brain 安装目录下的本地忽略目录，
 不会写入业务仓库。
 
@@ -89,6 +104,9 @@ D:\cb\.local-configs\你的业务仓库-mcp.json
 
 Qoder 可能存在多个 MCP 配置文件。若 UI 配置没有生效，请联系维护者检查实际生效的
 `extension/local/mcp.json`。
+
+生成 JSON 中的 `"timeout": 300000` 是 Qoder 专用扩展字段。Cursor 使用时必须删除该字段，只保留
+`command`、`args` 和 `env`。
 
 ## 第一次使用
 
