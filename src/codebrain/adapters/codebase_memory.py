@@ -270,20 +270,21 @@ def _resolve_path(path: str) -> str:
 
 def project_name_from_path(path: str) -> str:
     """Match codebase-memory-mcp's project name derived from repo path."""
-    return _project_name_from_path(path, unicode_safe=True)
+    return _project_name_from_path(path, unicode_safe=True, preserve_spaces=True)
 
 
 def project_name_aliases_from_path(path: str) -> list[str]:
     """Return current and legacy sidecar project names for one repo path."""
     return _dedupe_text([
-        _project_name_from_path(path, unicode_safe=True),
-        _project_name_from_path(path, unicode_safe=False),
+        _project_name_from_path(path, unicode_safe=True, preserve_spaces=True),
+        _project_name_from_path(path, unicode_safe=True, preserve_spaces=False),
+        _project_name_from_path(path, unicode_safe=False, preserve_spaces=False),
     ])
 
 
 def legacy_project_name_from_path(path: str) -> str:
     """Return the pre-Unicode project name for existing sidecar databases."""
-    return _project_name_from_path(path, unicode_safe=False)
+    return _project_name_from_path(path, unicode_safe=False, preserve_spaces=False)
 
 
 def repo_alias_source_paths(value: str | dict[str, str] | None) -> list[str]:
@@ -333,13 +334,18 @@ def _normalize_alias_key(path: str) -> str:
     return str(path).strip().replace("\\", "/").rstrip("/").lower()
 
 
-def _project_name_from_path(path: str, *, unicode_safe: bool) -> str:
+def _project_name_from_path(
+    path: str,
+    *,
+    unicode_safe: bool,
+    preserve_spaces: bool,
+) -> str:
     resolved = _resolve_path(path)
     chars: list[str] = []
     previous = ""
     for char in resolved:
         safe = (char.isalnum() if unicode_safe else char.isascii() and char.isalnum())
-        safe = safe or char in "._-"
+        safe = safe or char in "._-" or (preserve_spaces and char == " ")
         normalized = char if safe else "-"
         if (normalized == "-" and previous == "-") or (
             normalized == "." and previous == "."

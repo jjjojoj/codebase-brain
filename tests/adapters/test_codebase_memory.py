@@ -134,7 +134,22 @@ def test_project_name_from_path_matches_sidecar_sanitizing(monkeypatch) -> None:
 
     project = project_name_from_path("/Users/me/Documents/New project 8/codebase-brain")
 
-    assert project == "Users-me-Documents-New-project-8-codebase-brain"
+    assert project == "Users-me-Documents-New project 8-codebase-brain"
+
+
+def test_project_name_aliases_include_space_normalized_name(monkeypatch) -> None:
+    monkeypatch.setattr(
+        codebase_memory,
+        "_resolve_path",
+        lambda path: "/Users/me/Documents/New project 8/codebase-brain",
+    )
+
+    assert project_name_aliases_from_path(
+        "/Users/me/Documents/New project 8/codebase-brain"
+    ) == [
+        "Users-me-Documents-New project 8-codebase-brain",
+        "Users-me-Documents-New-project-8-codebase-brain",
+    ]
 
 
 def test_project_name_from_path_preserves_unicode_path_segments(monkeypatch) -> None:
@@ -163,6 +178,22 @@ def test_project_name_aliases_include_legacy_ascii_name(monkeypatch) -> None:
     assert legacy_project_name_from_path(r"D:\qoder工作区\django-test") == (
         "D-qoder-django-test"
     )
+
+
+def test_project_name_aliases_preserve_windows_spaces_and_unicode(monkeypatch) -> None:
+    monkeypatch.setattr(
+        codebase_memory,
+        "_resolve_path",
+        lambda path: r"D:\qoder工作区\New project 8\django-test",
+    )
+
+    assert project_name_aliases_from_path(
+        r"D:\qoder工作区\New project 8\django-test"
+    ) == [
+        "D-qoder工作区-New project 8-django-test",
+        "D-qoder工作区-New-project-8-django-test",
+        "D-qoder-New-project-8-django-test",
+    ]
 
 
 def test_search_graph_falls_back_to_legacy_project_alias(monkeypatch) -> None:
@@ -197,6 +228,44 @@ def test_search_graph_falls_back_to_legacy_project_alias(monkeypatch) -> None:
     assert result["ok"] is True
     assert result["data"]["results"][0]["name"] == "AuthService"
     assert result["data"]["project_alias_used"] == "D-qoder-django-test"
+
+
+def test_search_graph_falls_back_to_space_normalized_project_alias(monkeypatch) -> None:
+    observed_projects: list[str] = []
+
+    def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        args = json.loads(command[3])
+        observed_projects.append(args["project"])
+        if args["project"] == "Users-me-Documents-New project 8-codebase-brain":
+            return subprocess.CompletedProcess(command, 2, "", "project not found")
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            '{"results":[{"name":"brain_context_for_task"}],"total":1}',
+            "",
+        )
+
+    monkeypatch.setattr(codebase_memory, "_resolve_binary", lambda binary: "/bin/cbm")
+    monkeypatch.setattr(
+        codebase_memory,
+        "_resolve_path",
+        lambda path: "/Users/me/Documents/New project 8/codebase-brain",
+    )
+    adapter = CodebaseMemoryAdapter(binary="cbm", runner=fake_runner)
+
+    result = adapter.search_graph(
+        "brain_context_for_task", "/Users/me/Documents/New project 8/codebase-brain"
+    )
+
+    assert observed_projects == [
+        "Users-me-Documents-New project 8-codebase-brain",
+        "Users-me-Documents-New-project-8-codebase-brain",
+    ]
+    assert result["ok"] is True
+    assert result["data"]["results"][0]["name"] == "brain_context_for_task"
+    assert result["data"]["project_alias_used"] == (
+        "Users-me-Documents-New-project-8-codebase-brain"
+    )
 
 
 def test_trace_call_path_falls_back_after_project_error(monkeypatch) -> None:
