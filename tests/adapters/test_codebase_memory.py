@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from typing import Any
 
 from codebrain.adapters import codebase_memory
 from codebrain.adapters.codebase_memory import (
@@ -123,6 +124,19 @@ def test_nonzero_exit_returns_error_text(monkeypatch) -> None:
     assert result.status == "error"
     assert result.text == "bad args"
     assert result.error == "failed"
+
+
+def test_successful_call_does_not_report_stderr_as_error(monkeypatch) -> None:
+    def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(command, 0, '{"results":[]}', "level=info")
+
+    monkeypatch.setattr(codebase_memory, "_resolve_binary", lambda binary: "/bin/cbm")
+    adapter = CodebaseMemoryAdapter(binary="cbm", runner=fake_runner)
+
+    result = adapter.call("search_graph", {"project": "demo"})
+
+    assert result.ok is True
+    assert result.error == ""
 
 
 def test_project_name_from_path_matches_sidecar_sanitizing(monkeypatch) -> None:
@@ -272,8 +286,12 @@ def test_trace_call_path_falls_back_after_project_error(monkeypatch) -> None:
     observed_projects: list[str] = []
 
     def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        assert command[:3] == ["/bin/cbm", "cli", "trace_path"]
         args = json.loads(command[3])
         observed_projects.append(args["project"])
+        assert args["function_name"] == "AuthService"
+        assert args["mode"] == "calls"
+        assert args["direction"] == "both"
         if args["project"] == "D-qoder工作区-django-test":
             return subprocess.CompletedProcess(command, 2, "", "project not found")
         return subprocess.CompletedProcess(
@@ -298,7 +316,84 @@ def test_trace_call_path_falls_back_after_project_error(monkeypatch) -> None:
         "D-qoder-django-test",
     ]
     assert result["ok"] is True
+    assert result["tool"] == "trace_path"
     assert result["data"]["paths"][0]["callee"] == "AuthService"
+
+
+def test_trace_call_path_uses_space_preserving_project_alias(monkeypatch) -> None:
+    observed: list[dict[str, Any]] = []
+
+    def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        assert command[:3] == ["/bin/cbm", "cli", "trace_path"]
+        args = json.loads(command[3])
+        observed.append(args)
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            '{"paths":[{"caller":"brain_explain_symbol","callee":"trace_path"}]}',
+            "",
+        )
+
+    monkeypatch.setattr(codebase_memory, "_resolve_binary", lambda binary: "/bin/cbm")
+    monkeypatch.setattr(
+        codebase_memory,
+        "_resolve_path",
+        lambda path: "/Users/me/Documents/New project 8/codebase-brain",
+    )
+    adapter = CodebaseMemoryAdapter(binary="cbm", runner=fake_runner)
+
+    result = adapter.trace_call_path(
+        "brain_explain_symbol", "/Users/me/Documents/New project 8/codebase-brain", depth=4
+    )
+
+    assert observed == [
+        {
+            "project": "Users-me-Documents-New project 8-codebase-brain",
+            "function_name": "brain_explain_symbol",
+            "mode": "calls",
+            "direction": "both",
+            "depth": 4,
+        }
+    ]
+    assert result["ok"] is True
+    assert result["data"]["project_alias_used"] == (
+        "Users-me-Documents-New project 8-codebase-brain"
+    )
+
+
+def test_alias_error_does_not_override_successful_empty_trace(monkeypatch) -> None:
+    observed_projects: list[str] = []
+
+    def fake_runner(command: list[str], timeout_sec: int) -> subprocess.CompletedProcess[str]:
+        assert command[:3] == ["/bin/cbm", "cli", "trace_path"]
+        args = json.loads(command[3])
+        observed_projects.append(args["project"])
+        if args["project"] == "Users-me-Documents-New project 8-codebase-brain":
+            return subprocess.CompletedProcess(command, 0, '{"paths":[]}', "")
+        return subprocess.CompletedProcess(command, 2, "", "project not found")
+
+    monkeypatch.setattr(codebase_memory, "_resolve_binary", lambda binary: "/bin/cbm")
+    monkeypatch.setattr(
+        codebase_memory,
+        "_resolve_path",
+        lambda path: "/Users/me/Documents/New project 8/codebase-brain",
+    )
+    adapter = CodebaseMemoryAdapter(binary="cbm", runner=fake_runner)
+
+    result = adapter.trace_call_path(
+        "brain_explain_symbol", "/Users/me/Documents/New project 8/codebase-brain"
+    )
+
+    assert observed_projects == [
+        "Users-me-Documents-New project 8-codebase-brain",
+        "Users-me-Documents-New-project-8-codebase-brain",
+    ]
+    assert result["ok"] is True
+    assert result["status"] == "ok"
+    assert result["data"]["paths"] == []
+    assert result["data"]["project_alias_used"] == (
+        "Users-me-Documents-New project 8-codebase-brain"
+    )
 
 
 def test_index_repository_uses_configured_repo_alias(monkeypatch) -> None:

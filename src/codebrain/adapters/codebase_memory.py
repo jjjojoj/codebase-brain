@@ -120,10 +120,11 @@ class CodebaseMemoryAdapter:
         """Trace callers and callees for a symbol."""
         args = {
             "function_name": symbol,
+            "mode": "calls",
             "direction": "both",
             "depth": depth,
         }
-        return self._call_with_project_aliases("trace_call_path", args, repo_path).as_dict()
+        return self._call_with_project_aliases("trace_path", args, repo_path).as_dict()
 
     def _call_with_project_aliases(
         self,
@@ -133,6 +134,8 @@ class CodebaseMemoryAdapter:
     ) -> SidecarResult:
         aliases = self._project_aliases(repo_path)
         first_result: SidecarResult | None = None
+        first_ok_result: SidecarResult | None = None
+        first_ok_project = ""
         last_result: SidecarResult | None = None
         for project in aliases:
             result = self.call(
@@ -143,10 +146,15 @@ class CodebaseMemoryAdapter:
             if first_result is None:
                 first_result = result
             last_result = result
+            if result.ok is True and first_ok_result is None:
+                first_ok_result = result
+                first_ok_project = project
             if _sidecar_result_has_payload(result):
                 return _with_alias_metadata(result, aliases, project)
         if first_result is None:
             return self.call(tool, args, timeout_sec=self.search_timeout_sec)
+        if first_ok_result is not None:
+            return _with_alias_metadata(first_ok_result, aliases, first_ok_project)
         return _with_alias_metadata(last_result or first_result, aliases, aliases[-1])
 
     def _graph_repo_path(self, repo_path: str) -> str:
@@ -233,7 +241,6 @@ class CodebaseMemoryAdapter:
             command=command,
             data=data if not isinstance(data, str) else None,
             text=data if isinstance(data, str) else "",
-            error=stderr,
         )
 
 
